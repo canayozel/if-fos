@@ -3,35 +3,35 @@
 
 <head>
     <!-- META -->
-	<title>LOOPY (v1.2)</title>
+	<title>Financial Orchestration Simulator</title>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 	<meta content="utf-8" http-equiv="encoding">
 	<meta charset="utf-8">
-	<link rel="icon" type="image/png" href="favicon.png">
+	<link rel="icon" type="image/png" href="favicon.ico">
 
 	<!-- Schema.org markup for Google+ -->
-	<meta itemprop="name" content="LOOPY!">
-	<meta itemprop="description" content="a tool for thinking in systems">
-	<meta itemprop="image" content="http://ncase.me/loopy/social/thumbnail.png">
+	<meta itemprop="name" content="Integrated Finance FOS">
+	<meta itemprop="description" content="a tool for simulating financial orchestration">
+	<meta itemprop="image" content="https://cdn.sanity.io/images/sn58uoiq/production/a503ceaa07cbfe79adb35de0886dc320033c8eb2-313x313.svg">
 
 	<!-- Twitter Card data: SMALL -->
 	<meta name="twitter:card" content="summary"/>
-	<meta name="twitter:site" content="@ncasenmare"/>
-	<meta name="twitter:title" content="LOOPY!"/>
-	<meta name="twitter:description" content="a tool for thinking in systems"/>
-	<meta name="twitter:creator" content="@ncasenmare">
-	<meta name="twitter:image" content="http://ncase.me/loopy/social/thumbnail_small.png"/>
+	<meta name="twitter:site" content="@integratedfina4"/>
+	<meta name="twitter:title" content="Integrated Finance FOS"/>
+	<meta name="twitter:description" content="a tool for simulating financial orchestration">
+	<meta name="twitter:creator" content="@integratedfina4">
+	<meta name="twitter:image" content="https://cdn.sanity.io/images/sn58uoiq/production/a503ceaa07cbfe79adb35de0886dc320033c8eb2-313x313.svg"/>
 
 	<!-- Open Graph data -->
-	<meta property="og:title" content="LOOPY!">
+	<meta property="og:title" content="Integrated Finance FOS">
 	<meta property="og:type" content="website">
-	<meta property="og:url" content="http://ncase.me/loopy/">
-	<meta property="og:image" content="http://ncase.me/loopy/social/thumbnail.png">
-	<meta property="og:description" content="a tool for thinking in systems">
-
+	<meta property="og:url" content="https://integrated.finance">
+	<meta property="og:image" content="https://cdn.sanity.io/images/sn58uoiq/production/a503ceaa07cbfe79adb35de0886dc320033c8eb2-313x313.svg">
+	<meta property="og:description" content="a tool for simulating financial orchestration">
+	
 	<!-- style -->
 	<link href="css/gg.css" rel="stylesheet" />
-	<link href="css/loopy.css" rel="stylesheet" />
+	<link href="css/fos.css" rel="stylesheet" />
 	<link href="css/balloon.css" rel="stylesheet" />
 
 	<!-- library scripts ******************************* -->
@@ -39,7 +39,7 @@
 	<script src="js/utility/utility.js?v=1"></script>
 
 	<!-- core scripts ********************************** -->
-	<script src="js/loopy.js?v=1"></script>
+	<script src="js/fos.js?v=1"></script>
 	<script src="js/model/model.js?v=1"></script>
 	<script src="js/model/item.js?v=1"></script>
 	<script src="js/model/edge.js?v=1"></script>
@@ -60,14 +60,14 @@
 
 <script>
 	window.onload = function () {
-		window.loopy = new Loopy(document.body, {
+		window.fos = new FOS(document.body, {
 			// optional
 			animationSpeed: 3,
 			embedded: false,
 			ui: true,
 			autoSignal: null
 		});
-		window.loopy.run();
+		window.fos.run();
 	};
 </script>
 

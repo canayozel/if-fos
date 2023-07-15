@@ -21,7 +21,7 @@
     exports.Key = Key;
 
     Key.onKeyDown = function (event) {
-        if (window.loopy && window.loopy.modal && window.loopy.modal.open) return;
+        if (window.fos && window.fos.modal && window.fos.modal.open) return;
         var code = KEY_CODES[event.keyCode];
 
         if (code) {
@@ -34,7 +34,7 @@
     }
 
     Key.onKeyUp = function (event) {
-        if (window.loopy && window.loopy.modal && window.loopy.modal.open) return;
+        if (window.fos && window.fos.modal && window.fos.modal.open) return;
 
         var code = KEY_CODES[event.keyCode];
         if (code) {

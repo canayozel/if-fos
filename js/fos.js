@@ -1,4 +1,4 @@
-class Loopy {
+class FOS {
     static get #DEFAULT_ANIMATION_SPEED() { return 3; };
     static get #INITIAL_WOBBLE_CONTROLS() { return -1; };
 
@@ -6,21 +6,21 @@ class Loopy {
     #padding = { all: 25, bottom: 110 };
     #fps = 1000 / 30; // 30 FPS
 
-    #wobble = Loopy.#INITIAL_WOBBLE_CONTROLS;
+    #wobble = FOS.#INITIAL_WOBBLE_CONTROLS;
     #elements = {};
 
     constructor(dom, configuration) {
-        Loopy.#registerGlobalParameters();
+        FOS.#registerGlobalParameters();
 
         _validateAssigned(dom, "Parent dom to build the simulator must be provided in the configuration.");
         _validateAssigned(configuration, "Configuration object must be provided.");
 
         // configuration
         this.#configuration = configuration;
-        Loopy.#initializeConfigurationParameter(this.#configuration, "embedded", false, Loopy.#booleanParser, Loopy.#booleanTypeChecker);
-        Loopy.#initializeConfigurationParameter(this.#configuration, "ui", true, Loopy.#booleanParser, Loopy.#booleanTypeChecker);
-        Loopy.#initializeConfigurationParameter(this.#configuration, "autoSignal", true, Loopy.#arrayParser, Array.isArray);
-        Loopy.#initializeConfigurationParameter(this.#configuration, "animationSpeed", Loopy.#DEFAULT_ANIMATION_SPEED, parseInt, parameter => typeof parameter == "number");
+        FOS.#initializeConfigurationParameter(this.#configuration, "embedded", false, FOS.#booleanParser, FOS.#booleanTypeChecker);
+        FOS.#initializeConfigurationParameter(this.#configuration, "ui", true, FOS.#booleanParser, FOS.#booleanTypeChecker);
+        FOS.#initializeConfigurationParameter(this.#configuration, "autoSignal", true, FOS.#arrayParser, Array.isArray);
+        FOS.#initializeConfigurationParameter(this.#configuration, "animationSpeed", FOS.#DEFAULT_ANIMATION_SPEED, parseInt, parameter => typeof parameter == "number");
 
         // initialize parameters
         var offset = { x: 0, y: 0, scale: 1 }
@@ -222,7 +222,7 @@ class Loopy {
     #saveToFile() {
         var element = document.createElement('a');
         element.setAttribute('href', 'data:text/plain;charset=utf-8,' + this.model.serialize());
-        element.setAttribute('download', "model.loopy");
+        element.setAttribute('download', "model.fos");
         element.style.display = 'none';
         document.body.appendChild(element);
 
@@ -526,7 +526,7 @@ class Loopy {
         window.isMacLike = navigator.userAgent.indexOf("Mac") != -1 || navigator.userAgent.indexOf("like Mac") != -1
 
         window.onbeforeunload = function (e) {
-            if (window.Loopy && window.loopy.model && window.loopy.model.dirty) {
+            if (window.fos && window.fos.model && window.fos.model.dirty) {
                 var dialogText = "Are you sure you want to leave without saving your changes?";
                 e.returnValue = dialogText;
                 return dialogText;

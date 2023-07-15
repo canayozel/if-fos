@@ -1,8 +1,4 @@
 class Modal extends UI {
-    static get EXAMPLES() { return "examples"; }
-    static get HOW_TO() { return "howto"; }
-    static get CREDITS() { return "credits"; }
-
     #elements = {};
     #open = false;
 
@@ -17,9 +13,6 @@ class Modal extends UI {
 
         this.addPage(Toolbar.TOOL_LINK, this.#initializeSaveAsLinkPage(configuration));
         this.addPage(Toolbar.TOOL_EMBED, this.#initializeEmbedCodePage(configuration));
-        this.addPage(Modal.EXAMPLES, this.#initializeExamplesPage(configuration));
-        this.addPage(Modal.HOW_TO, this.#initializeHowToPage(configuration));
-        this.addPage(Modal.CREDITS, this.#initializeCreditsPage(configuration));
 
         subscribe("modal", function (action) {
             var page = this.showPage(action);
@@ -161,45 +154,6 @@ class Modal extends UI {
 
         return page;
     }
-
-    #initializeExamplesPage(configuration) {
-        var page = new ModalPage();
-        
-        var iframeContainer = page.addComponent(new ComponentIframe(page, "", {
-            width: 700,
-            height: 440
-        }));
-
-        iframeContainer.getIframeElement().setAttribute("src", "pages/examples/index.html");
-
-        return page;
-	}
-
-    #initializeHowToPage(configuration) {
-        var page = new ModalPage();
-        
-        var iframeContainer = page.addComponent(new ComponentIframe(page, "", {
-            width: 530,
-            height: 430
-        }));
-
-        iframeContainer.getIframeElement().setAttribute("src", "pages/howto.html");
-
-        return page;
-	}
-
-    #initializeCreditsPage(configuration) {
-        var page = new ModalPage();
-        
-        var iframeContainer = page.addComponent(new ComponentIframe(page, "", {
-            width: 700,
-            height: 430
-        }));
-
-        iframeContainer.getIframeElement().setAttribute("src", "pages/credits/index.html");
-
-        return page;
-	}
 
     #initializeSaveAsLinkPage(configuration) {
         var page = new ModalPage();
