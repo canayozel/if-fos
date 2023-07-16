@@ -101,6 +101,10 @@ class UIPage {
 }
 
 class Component {
+	static #ID_COUNTER = 0;
+	static #components = {};
+
+	#id;
 	#dom;
 	#page;
 	#configuration;
@@ -112,8 +116,10 @@ class Component {
 		this.#configuration = configuration;
 
 		this.#dom = document.createElement("div");
+		this.#dom.setAttribute("id", _format("component-%s", this.#id = Component.#generateId()));
 	}
 
+	get id() { return this.#id; };
 	get dom() { return this.#dom; };
 	get page() { return this.#page; };
 	get targetPropertyName() { return this.#targetPropertyName; };
@@ -131,6 +137,17 @@ class Component {
 	};
 
 	show() { _throwErrorMessage("Not implemented!"); }
+
+	static #generateId(id) {
+		if (id !== undefined) {
+			_validateTrue(!Component.#components[id], "ID is already in use!");
+		} else {
+			do { id = Component.#ID_COUNTER++; } while (Component.#components[id]);
+		}
+
+		Component.#components[id] = this;
+		return id;
+	}
 }
 
 class ComponentButton extends Component {
@@ -140,7 +157,7 @@ class ComponentButton extends Component {
 		var button = _createButton(this.configuration.label, function () {
 			configuration.onclick(this.page.target);
 		}.bind(this));
-
+		button.setAttribute("id", _format("component-button-%s"), this.id);
 		this.dom.appendChild(button);
 
 		// Unless it's a HEADER button!
@@ -170,6 +187,7 @@ class ComponentInput extends Component {
 
 		// label
 		var label = _createLabel(configuration.label);
+		label.setAttribute("id", _format("component-label-%s", this.id));
 		var className = configuration.textarea ? "component-textarea" : "component-input";
 		this.dom.appendChild(label);
 
@@ -177,6 +195,7 @@ class ComponentInput extends Component {
 		this.#input = _createTextInput(className, configuration.textarea, function (event) {
 			this.setTargetPropertyValue(this.#input.value);
 		}.bind(this));
+		this.#input.setAttribute("id", _format("component-input-%s", this.id));
 
 		this.dom.appendChild(this.#input);
 	}
@@ -197,6 +216,7 @@ class ComponentOutput extends Component {
 		super(page, targetPropertyName, configuration);
 
 		this.#output = _createTextInput("component-output", configuration.textarea, configuration.oninput);
+		this.#output.setAttribute("id", _format("component-output-%s", this.id));
 		this.#output.setAttribute("readonly", "true");
 		this.#output.onclick = function () {
 			this.#output.select();
@@ -227,6 +247,7 @@ class ComponentIframe extends Component {
 		this.#iframe = document.createElement("iframe");
 		this.#iframe.width = configuration.width;
 		this.#iframe.height = configuration.height;
+		this.#iframe.setAttribute("id", _format("component-iframe-%s", this.id));
 
 		this.dom.appendChild(this.#iframe);
 	}

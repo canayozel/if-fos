@@ -523,7 +523,10 @@ class FOS {
         };
 
         Math.TAU = Math.PI * 2;
-        window.isMacLike = navigator.userAgent.indexOf("Mac") != -1 || navigator.userAgent.indexOf("like Mac") != -1
+        
+        var os = window.navigator.userAgentData.platform.toLowerCase();
+        window.isMacLike = os.indexOf("macos") != -1 ||  os.indexOf("mac os") != -1;
+        window.isMobile = window.navigator.userAgentData.mobile;
 
         window.onbeforeunload = function (e) {
             if (window.fos && window.fos.model && window.fos.model.dirty) {

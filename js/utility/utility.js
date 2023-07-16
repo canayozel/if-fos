@@ -131,42 +131,42 @@ function _createLabel(message) {
 /**************************************************************************/
 /**************************************************************************/
 function _createNumberInput(onUpdate) {
-	var self = {};
+	var input = {};
 
-	self.dom = document.createElement("input");
-	self.dom.style.border = "none";
-	self.dom.style.width = "40px";
-	self.dom.style.padding = "5px";
+	input.dom = document.createElement("input");
+	input.dom.style.border = "none";
+	input.dom.style.width = "40px";
+	input.dom.style.padding = "5px";
 
-	self.dom.addEventListener("keydown", function (event) {
+	input.dom.addEventListener("keydown", function (event) {
 		event.stopPropagation ? event.stopPropagation() : (event.cancelBubble = true);
 	},
 		false); // STOP IT FROM TRIGGERING KEY.js
 
 	// on update
-	self.dom.onchange = function () {
-		var value = parseInt(self.getValue());
+	input.dom.onchange = function () {
+		var value = parseInt(input.getValue());
 		if (isNaN(value)) value = 0;
-		self.setValue(value);
+		input.setValue(value);
 		onUpdate(value);
 	};
 
 	// select on click, yo
-	self.dom.onclick = function () {
-		self.dom.select();
+	input.dom.onclick = function () {
+		input.dom.select();
 	};
 
 	// set & get value
-	self.getValue = function () {
-		return self.dom.value;
+	input.getValue = function () {
+		return input.dom.value;
 	};
 
-	self.setValue = function (number) {
-		self.dom.value = number;
+	input.setValue = function (number) {
+		input.dom.value = number;
 	};
 
 	// return an OBJECT.
-	return self;
+	return input;
 }
 /**************************************************************************/
 /**************************************************************************/

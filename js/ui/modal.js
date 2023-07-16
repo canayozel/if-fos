@@ -99,7 +99,11 @@ class Modal extends UI {
 
         // edit size
         var widthInput = _createNumberInput(__onUpdate);
+        widthInput.dom.setAttribute("id", "modal-embed-input-width");
+
         var heightInput = _createNumberInput(__onUpdate);
+        heightInput.dom.setAttribute("id", "modal-embed-input-height");
+
         var label = document.createElement("div");
         label.style.display = "inline-block";
         label.style.fontSize = "15px";
