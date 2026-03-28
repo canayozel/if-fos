@@ -64,14 +64,14 @@ class FOS {
         subscribe("model/mode/changed", function () {
             if (this.model.isPlaying()) {
                 this.#wobble = 45;
-                this.playbar.showPage(Playbar.PAEG_ID_PLAY);
+                this.playbar.showPage(Playbar.PAGE_ID_PLAY);
                 this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
                 this.sidebar.setAttribute("mode", "play");
                 this.toolbar.hide();
                 this.#elements.simulator.removeAttribute("cursor");
             } else if (this.model.isComposing()) {
                 this.#wobble = -1;
-                this.playbar.showPage(Playbar.PAEG_ID_COMPOSE);
+                this.playbar.showPage(Playbar.PAGE_ID_COMPOSE);
                 this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
                 this.sidebar.setAttribute("mode", "compose");
                 this.toolbar.show();

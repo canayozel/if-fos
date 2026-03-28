@@ -1,12 +1,12 @@
 class Playbar extends UI {
     static get PAGE_ID_COMPOSE() { return "COMPOSE" };
-    static get PAEG_ID_PLAY() { return "PLAY" };
+    static get PAGE_ID_PLAY() { return "PLAY" };
 
     constructor(dom, configuration) {
         super(dom)
 
         this.addPage(Playbar.PAGE_ID_COMPOSE, this.#initializeComposePage(configuration));
-        this.addPage(Playbar.PAEG_ID_PLAY, this.#initializePlayPage(configuration));
+        this.addPage(Playbar.PAGE_ID_PLAY, this.#initializePlayPage(configuration));
 
         this.showPage(Playbar.PAGE_ID_COMPOSE);
 
