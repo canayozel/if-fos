@@ -30,6 +30,7 @@ class Stock extends Item {
     #flows = { inbound: [], outbound: [] }
     #innerRadius;
 
+    #unit = "";
     #initialValue = Stock.#DEFAULT_VALUE;
     #currentValue;
 
@@ -40,6 +41,7 @@ class Stock extends Item {
     get label() { return this.#label; }
     get color() { return this.#color; }
     get initialValue() { return this.#initialValue; }
+    get unit() { return this.#unit; }
     get shape() { return this instanceof RectangleStock ? 1 : 0; }
 
     set x(x) { this.#x = x; }
@@ -47,21 +49,23 @@ class Stock extends Item {
     set radius(radius) { this.#radius = radius; }
     set label(label) { this.#label = label; }
     set color(color) { this.#color = color; }
-    set initialValue(initialValue) { this.#initialValue = initialValue; }
+    set initialValue(initialValue) { this.#initialValue = parseFloat(initialValue) || 0; }
+    set unit(unit) { this.#unit = unit; }
     set shape(value) { publish("model/stock/shape", [this, value]); }
 
     constructor(configuration) {
         super(Item.STOCK, configuration);
 
-        _validateTrue(configuration.x && configuration.x >= 0, "X axis coordinate 'x' must be provided in configuration as a non-negative number.");
-        _validateTrue(configuration.y && configuration.y >= 0, "Y axis coordinate 'y' must be provided in configuration as a non-negative number.");
+        _validateTrue(configuration.x !== undefined && configuration.x >= 0, "X axis coordinate 'x' must be provided in configuration as a non-negative number.");
+        _validateTrue(configuration.y !== undefined && configuration.y >= 0, "Y axis coordinate 'y' must be provided in configuration as a non-negative number.");
 
         this.x = configuration.x;
         this.y = configuration.y;
 
         if (configuration.radius !== undefined) this.#radius = configuration.radius;
         if (configuration.label !== undefined) this.#label = configuration.label;
-        if (configuration.initialValue !== undefined) this.#initialValue = configuration.initialValue;
+        if (configuration.initialValue !== undefined) this.#initialValue = parseFloat(configuration.initialValue);
+        if (configuration.unit !== undefined) this.#unit = configuration.unit;
 
         // color / hue (compatibility)
         if (configuration.color !== undefined) {
@@ -114,9 +118,6 @@ class Stock extends Item {
         // draw base shape
         this.drawShape(context, color, r);
 
-        // inner colored value bubble
-        this.drawValue(context, color, r);
-
         // label
         this.drawLabel(context, r);
 
@@ -168,18 +169,32 @@ class Stock extends Item {
     }
 
     drawLabel(context, r) {
-        var fontsize = 40;
-        context.font = "normal " + fontsize + "px sans-serif";
+        // Name (Top)
+        var nameFontSize = 35;
+        context.font = "bold " + nameFontSize + "px sans-serif";
         context.textAlign = "center";
         context.textBaseline = "middle";
         context.fillStyle = "#000";
-        var width = context.measureText(this.#label).width;
-        while (width > r * 2 - 30) { // -30 for buffer. HACK: HARD-CODED.
-            fontsize -= 1;
-            context.font = "normal " + fontsize + "px sans-serif";
-            width = context.measureText(this.#label).width;
+        var nameWidth = context.measureText(this.label).width;
+        while (nameWidth > r * 2 - 20) {
+            nameFontSize -= 1;
+            context.font = "bold " + nameFontSize + "px sans-serif";
+            nameWidth = context.measureText(this.label).width;
         }
-        context.fillText(this.#label, 0, 0);
+        context.fillText(this.label, 0, -12);
+
+        // Value + Unit (Bottom)
+        var valueFontSize = 25;
+        context.font = "normal " + valueFontSize + "px sans-serif";
+        var displayValue = Math.round(this.#currentValue * 100) / 100;
+        var valueText = displayValue + " " + (this.unit || "");
+        var valueWidth = context.measureText(valueText).width;
+        while (valueWidth > r * 2 - 20) {
+            valueFontSize -= 1;
+            context.font = "normal " + valueFontSize + "px sans-serif";
+            valueWidth = context.measureText(valueText).width;
+        }
+        context.fillText(valueText, 0, 18);
     }
 
     drawControls(context, configuration) {
@@ -241,11 +256,13 @@ class Stock extends Item {
     }
 
     removeInboundFlow(flow) {
-        this.#flows.inbound.splice(this.#flows.inbound.indexOf(flow), 1);
+        var index = this.#flows.inbound.indexOf(flow);
+        if (index !== -1) this.#flows.inbound.splice(index, 1);
     }
 
     removeOutboundFlow(flow) {
-        this.#flows.outbound.splice(this.#flows.outbound.indexOf(flow), 1);
+        var index = this.#flows.outbound.indexOf(flow);
+        if (index !== -1) this.#flows.outbound.splice(index, 1);
     }
 
     takeSignal(signal) {

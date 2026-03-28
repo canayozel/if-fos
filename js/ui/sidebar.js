@@ -42,21 +42,22 @@ class Sidebar extends UI {
         page.addComponent(new ComponentInput(page, "label", {
             label: "<br><br>Name:"
         }));
+        page.addComponent(new ComponentChoice(page, "shape", {
+            label: "Shape:",
+            options: [0, 1],
+            iconClasses: ["choice-icon-circle", "choice-icon-rectangle"]
+        }));
         page.addComponent(new ComponentColor(page, "color", {
             label: "Color:",
             oninput: (value) => {
                 Stock.DEFAULT_COLOR = value;
             }
         }));
-        page.addComponent(new ComponentChoice(page, "initialValue", {
-            label: "Start Amount:",
-            options: [0, 0.16, 0.33, 0.50, 0.66, 0.83, 1],
-            labels: ["0", "1", "2", "3", "4", "5", "6"]
+        page.addComponent(new ComponentInput(page, "initialValue", {
+            label: "Start Value:"
         }));
-        page.addComponent(new ComponentChoice(page, "shape", {
-            label: "Shape:",
-            options: [0, 1],
-            iconClasses: ["choice-icon-circle", "choice-icon-rectangle"]
+        page.addComponent(new ComponentInput(page, "unit", {
+            label: "Unit:"
         }));
         page.addComponent(new ComponentButton(page, "", {
             label: "delete stock",

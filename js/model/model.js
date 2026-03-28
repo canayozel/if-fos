@@ -146,7 +146,8 @@ class Model {
                 initialValue: stock[3],
                 label: decodeURIComponent(stock[4]),
                 hue: stock[5],
-                shape: stock[6]
+                shape: stock[6],
+                unit: stock[7] ? decodeURIComponent(stock[7]) : ""
             });
         }
 
@@ -237,9 +238,13 @@ class Model {
         this.#context.setTransform(s, 0, 0, s, tx, ty);
 
         // draw all
-        for (var i = 0; i < this.#texts.length; i++) this.#texts[i].draw(this.#context, configuration);
-        for (var i = 0; i < this.#flows.length; i++) this.#flows[i].draw(this.#context, configuration);
-        for (var i = 0; i < this.#stocks.length; i++) this.#stocks[i].draw(this.#context, configuration);
+        try {
+            for (var i = 0; i < this.#texts.length; i++) this.#texts[i].draw(this.#context, configuration);
+            for (var i = 0; i < this.#flows.length; i++) this.#flows[i].draw(this.#context, configuration);
+            for (var i = 0; i < this.#stocks.length; i++) this.#stocks[i].draw(this.#context, configuration);
+        } catch (e) {
+            console.error("Draw loop error:", e);
+        }
 
         // restore
         this.#context.restore();
@@ -294,7 +299,7 @@ class Model {
         for (var i = 0; i < this.#stocks.length; i++) {
             var stock = this.#stocks[i];
 
-            // 0: id, 1: x, 2: y, 3: initialValue, 4: label, 5: color
+            // 0: id, 1: x, 2: y, 3: initialValue, 4: label, 5: color, 6: shape, 7: unit
             stocks.push([
                 stock.id,
                 Math.round(stock.x),
@@ -302,7 +307,8 @@ class Model {
                 stock.initialValue,
                 encodeURIComponent(encodeURIComponent(stock.label)),
                 stock.color,
-                stock instanceof RectangleStock ? 1 : 0
+                stock instanceof RectangleStock ? 1 : 0,
+                encodeURIComponent(encodeURIComponent(stock.unit))
             ]);
         }
 
@@ -460,7 +466,9 @@ class Model {
     };
 
     removeFlow(flow) {
-        this.#flows.splice(this.#flows.indexOf(flow), 1);
+        var index = this.#flows.indexOf(flow);
+        if (index === -1) return;
+        this.#flows.splice(index, 1);
 
         publish("model/changed");
     };
@@ -488,7 +496,9 @@ class Model {
     }
 
     removeText(text) {
-        this.#texts.splice(this.#texts.indexOf(text), 1);
+        var index = this.#texts.indexOf(text);
+        if (index === -1) return;
+        this.#texts.splice(index, 1);
 
         publish("model/changed");
     };
@@ -501,6 +511,7 @@ class Model {
             label: stock.label,
             color: stock.color,
             initialValue: stock.initialValue,
+            unit: stock.unit,
             shape: shape
         };
 
@@ -524,11 +535,15 @@ class Model {
             this.#stocks.push(newStock);
         }
 
-        // Swap in flows
+        // Swap in flows - using ID comparison for robustness
         for (var i = 0; i < this.#flows.length; i++) {
             var flow = this.#flows[i];
-            if (flow.source === stock) flow.source = newStock;
-            if (flow.target === stock) flow.target = newStock;
+            if (flow.source.id === stockConfiguration.id) {
+                flow.source = newStock;
+            }
+            if (flow.target.id === stockConfiguration.id) {
+                flow.target = newStock;
+            }
         }
 
         publish("model/stock/replaced", [newStock]);

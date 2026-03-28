@@ -20,13 +20,12 @@ class RectangleStock extends Stock {
         var w = r * 2;
         var h = r * 1.5;
 
-        // white-gray bubble with colored border
         context.beginPath();
         context.rect(-w / 2, -h / 2, w, h);
-        context.fillStyle = "#ffffff";
+        context.fillStyle = color;
         context.fill();
-        context.lineWidth = 6;
-        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.strokeStyle = "rgba(0,0,0,0.1)";
         context.stroke();
     }
 
@@ -49,8 +48,8 @@ class RectangleStock extends Stock {
                y <= this.y + h / 2 + b;
     };
 
-    kill() {
-        super.kill();
+    kill(silent) {
+        super.kill(silent);
         delete RectangleStock.#stocks[this.id];
     };
 }

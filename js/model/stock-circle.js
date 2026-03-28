@@ -15,13 +15,12 @@ class CircleStock extends Stock {
     }
 
     drawShape(context, color, r) {
-        // white-gray bubble with colored border
         context.beginPath();
         context.arc(0, 0, r - 2, 0, Math.TAU, false);
-        context.fillStyle = "#ffffff";
+        context.fillStyle = color;
         context.fill();
-        context.lineWidth = 6;
-        context.strokeStyle = color;
+        context.lineWidth = 2;
+        context.strokeStyle = "rgba(0,0,0,0.1)";
         context.stroke();
     }
 
@@ -36,8 +35,8 @@ class CircleStock extends Stock {
         return _isPointInCircle(x, y, this.x, this.y, this.radius + (buffer || 0));
     };
 
-    kill() {
-        super.kill();
+    kill(silent) {
+        super.kill(silent);
         delete CircleStock.#stocks[this.id];
     };
 }

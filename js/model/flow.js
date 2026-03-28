@@ -31,7 +31,19 @@ class Flow extends Item {
     get rotation() { return this.#rotation; }
     get strength() { return this.#strength; }
 
-    set strength(strength) { return this.#strength = strength; }
+    set strength(strength) { this.#strength = strength; }
+
+    set source(source) {
+        if (this.#source) this.#source.removeOutboundFlow(this);
+        this.#source = source;
+        if (this.#source) this.#source.addOutboundFlow(this);
+    }
+
+    set target(target) {
+        if (this.#target) this.#target.removeInboundFlow(this);
+        this.#target = target;
+        if (this.#target) this.#target.addInboundFlow(this);
+    }
 
     constructor(configuration) {
         super(Item.FLOW, configuration);
