@@ -71,7 +71,7 @@ class FOS {
                 this.#elements.simulator.removeAttribute("cursor");
             } else if (this.model.isComposing()) {
                 this.#wobble = -1;
-                this.playbar.showPage(Playbar.PAGE_ID_COMPOSE);
+                this.playbar.showPage(Playbar.PAEG_ID_COMPOSE);
                 this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
                 this.sidebar.setAttribute("mode", "compose");
                 this.toolbar.show();
@@ -190,11 +190,11 @@ class FOS {
         };
     }
 
-    #getEdgeSelectionRadius() {
+    #getFlowSelectionRadius() {
         // radius to use for select 
         if (this.toolbar.currentTool === Toolbar.TOOL_MOVE || this.toolbar.currentTool !== Toolbar.TOOL_PEN) return 40; // selecting, wide radius!
         else if (this.toolbar.currentTool === Toolbar.TOOL_ERASE) return 25; // no accidental erase
-        else return 15; // add text close to edges
+        else return 15; // add text close to flows
     }
 
     #loadFromFile() {
@@ -259,17 +259,17 @@ class FOS {
             return true;
         }
 
-        // Did user click on a node ? If so, edit THAT node.
-        const clickedNode = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
-        if (clickedNode) {
-            this.sidebar.edit(clickedNode);
+        // Did user click on a stock ? If so, edit THAT stock.
+        const clickedStock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 0);
+        if (clickedStock) {
+            this.sidebar.edit(clickedStock);
             return true;
         }
 
-        // Did user click on an edge ? If so, edit THAT edge.
-        const clickedEdge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
-        if (clickedEdge) {
-            this.sidebar.edit(clickedEdge);
+        // Did user click on a flow ? If so, edit THAT flow.
+        const clickedFlow = this.model.getFlowByCoordinates(this.mouse.x, this.mouse.y, this.#getFlowSelectionRadius());
+        if (clickedFlow) {
+            this.sidebar.edit(clickedFlow);
             return true;
         }
         return false;
@@ -302,11 +302,11 @@ class FOS {
                 var text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
                 if (text) text.kill();
 
-                var node = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
-                if (node) node.kill();
+                var stock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 0);
+                if (stock) stock.kill();
 
-                var edge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
-                if (edge) edge.kill();
+                var flow = this.model.getFlowByCoordinates(this.mouse.x, this.mouse.y, this.#getFlowSelectionRadius());
+                if (flow) flow.kill();
             }
         }.bind(this);
 
@@ -336,22 +336,22 @@ class FOS {
                 return;
             }
 
-            const node = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
-            if (node) {
-                dragging = node;
-                offset.x = this.mouse.x - node.x;
-                offset.y = this.mouse.y - node.y;
-                this.sidebar.edit(node);
+            const stock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 0);
+            if (stock) {
+                dragging = stock;
+                offset.x = this.mouse.x - stock.x;
+                offset.y = this.mouse.y - stock.y;
+                this.sidebar.edit(stock);
                 publish("tool/changed", [Toolbar.TOOL_MOVE, true])
                 return;
             }
 
-            const edge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
-            if (edge) {
-                dragging = edge;
-                offset.x = this.mouse.x - edge.x;
-                offset.y = this.mouse.y - edge.y;
-                this.sidebar.edit(edge);
+            const flow = this.model.getFlowByCoordinates(this.mouse.x, this.mouse.y, this.#getFlowSelectionRadius());
+            if (flow) {
+                dragging = flow;
+                offset.x = this.mouse.x - flow.x;
+                offset.y = this.mouse.y - flow.y;
+                this.sidebar.edit(flow);
                 publish("tool/changed", [Toolbar.TOOL_MOVE, true])
             }
 
@@ -405,77 +405,77 @@ class FOS {
             if (!this.mouse.moved) return;
 
             // detect which item draw
-            // if started in a node and ended near/in a node, it is an edge else it is a node
+            // if started in a stock and ended near/in a stock, it is an flow else it is a stock
             const startPoint = stroke[0];
-            let sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 0);
-            if (!sourceNode) sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 20); // try again with buffer
+            let sourceStock = this.model.getStockByCoordinates(startPoint[0], startPoint[1], 0);
+            if (!sourceStock) sourceStock = this.model.getStockByCoordinates(startPoint[0], startPoint[1], 20); // try again with buffer
 
             const endPoint = stroke[stroke.length - 1];
-            let targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 0);
-            if (!targetNode) targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 40); // try again with buffer
+            let targetStock = this.model.getStockByCoordinates(endPoint[0], endPoint[1], 0);
+            if (!targetStock) targetStock = this.model.getStockByCoordinates(endPoint[0], endPoint[1], 40); // try again with buffer
 
-            if (sourceNode && targetNode) { // add edge
-                let edgeConfiguration = {source: sourceNode, target: targetNode};
-                if (sourceNode === targetNode) {
+            if (sourceStock && targetStock) { // add flow
+                let flowConfiguration = {source: sourceStock, target: targetStock};
+                if (sourceStock === targetStock) {
                     // find rotation first by getting average point
                     var bounds = _getBounds(stroke);
                     var x = (bounds.left + bounds.right) / 2;
                     var y = (bounds.top + bounds.bottom) / 2;
-                    var dx = x - sourceNode.x;
-                    var dy = y - sourceNode.y;
+                    var dx = x - sourceStock.x;
+                    var dy = y - sourceStock.y;
                     var angle = Math.atan2(dy, dx);
 
                     // find arc height.
-                    var translated = _translatePoints(stroke, -sourceNode.x, -sourceNode.y);
+                    var translated = _translatePoints(stroke, -sourceStock.x, -sourceStock.y);
                     var rotated = _rotatePoints(translated, -angle);
                     bounds = _getBounds(rotated);
 
                     // arc & rotation
-                    edgeConfiguration.rotation = angle * (360 / Math.TAU) + 90;
-                    edgeConfiguration.arc = bounds.right;
+                    flowConfiguration.rotation = angle * (360 / Math.TAU) + 90;
+                    flowConfiguration.arc = bounds.right;
 
 
                     // if the arc is NOT created than the radius, don't draw, and otherwise, make sure minimum distance of radius+25)
-                    if (edgeConfiguration.arc < sourceNode.radius) {
-                        edgeConfiguration = null;
-                        this.sidebar.edit(sourceNode); // you were probably trying to edit the node
+                    if (flowConfiguration.arc < sourceStock.radius) {
+                        flowConfiguration = null;
+                        this.sidebar.edit(sourceStock); // you were probably trying to edit the stock
                     } else {
-                        var minimum = sourceNode.radius + 25;
-                        if (edgeConfiguration.arc < minimum) edgeConfiguration.arc = minimum;
+                        var minimum = sourceStock.radius + 25;
+                        if (flowConfiguration.arc < minimum) flowConfiguration.arc = minimum;
                     }
                 } else {
                     // find the arc by translating & rotating
-                    var dx = targetNode.x - sourceNode.x;
-                    var dy = targetNode.y - sourceNode.y;
+                    var dx = targetStock.x - sourceStock.x;
+                    var dy = targetStock.y - sourceStock.y;
                     var angle = Math.atan2(dy, dx);
-                    var translated = _translatePoints(stroke, -sourceNode.x, -sourceNode.y);
+                    var translated = _translatePoints(stroke, -sourceStock.x, -sourceStock.y);
                     var rotated = _rotatePoints(translated, -angle);
                     var bounds = _getBounds(rotated);
 
                     // arc
                     if (Math.abs(bounds.top) > Math.abs(bounds.bottom)) {
-                        edgeConfiguration.arc = -bounds.top;
+                        flowConfiguration.arc = -bounds.top;
                     } else {
-                        edgeConfiguration.arc = -bounds.bottom;
+                        flowConfiguration.arc = -bounds.bottom;
                     }
                 }
 
-                if (edgeConfiguration) {
-                    var newEdge = this.model.addEdge(this.#getAnimationConfiguration(), edgeConfiguration);
-                    this.sidebar.edit(newEdge);
+                if (flowConfiguration) {
+                    var newFlow = this.model.addFlow(this.#getAnimationConfiguration(), flowConfiguration);
+                    this.sidebar.edit(newFlow);
                 }
-            } else if (!sourceNode) { // add node
+            } else if (!sourceStock) { // add stock
                 var bounds = _getBounds(stroke);
                 var x = (bounds.left + bounds.right) / 2;
                 var y = (bounds.top + bounds.bottom) / 2;
                 var r = ((bounds.width / 2) + (bounds.height / 2)) / 2;
 
                 if (r > 15) { // stroke cannot be too small
-                    var newNode = this.model.addNode(this.#getAnimationConfiguration(), {
+                    var newStock = this.model.addStock(this.#getAnimationConfiguration(), {
                         x: x,
                         y: y
                     });
-                    this.sidebar.edit(newNode);
+                    this.sidebar.edit(newStock);
                 }
             }
 

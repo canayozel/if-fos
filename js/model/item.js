@@ -1,7 +1,7 @@
 class Item {
     static get TEXT() { return "TEXT"; };
-    static get NODE() { return "NODE"; };
-    static get EDGE() { return "EDGE"; };
+    static get STOCK() { return "STOCK"; };
+    static get FLOW() { return "FLOW"; };
 
     #type
     #selected

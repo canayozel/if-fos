@@ -155,26 +155,6 @@ textarea.component-output {
 	resize: vertical;
 }
 
-.component-slider {
-	position: relative;
-	width: 250px;
-	height: 52px;
-}
-
-.component-slider-graphic {
-	position: absolute;
-	width: 250px;
-	height: 40px;
-	cursor: pointer;
-}
-
-.component-slider-pointer {
-	position: absolute;
-	top: 42px;
-	width: 15px;
-	height: 10px;
-}
-
 .component-label {
 	margin-bottom: 5px;
 }
@@ -208,6 +188,60 @@ textarea.component-output {
 
 .component-button[header=yes]:hover {
 	background: #333333;
+}
+
+/********** choice component **********/
+.component-choice-container {
+	display: flex;
+	justify-content: space-between;
+	background: #ffffff;
+	padding: 2px;
+	border-radius: 2px;
+	border: 1px solid #cccccc;
+}
+
+.component-choice {
+	flex: 1;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 40px;
+	cursor: pointer;
+	border-radius: 2px;
+	margin: 2px;
+	transition: background 0.2s;
+	font-size: 14px;
+}
+
+.component-choice[selected=yes] {
+	background: #c1dcff;
+	color: #000000;
+}
+
+.component-choice[selected=yes] .choice-icon-circle,
+.component-choice[selected=yes] .choice-icon-rectangle,
+.component-choice[selected=yes] .choice-icon-swatch {
+	border-color: #000000;
+}
+
+.choice-icon-circle {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 2px solid #555555;
+}
+
+.choice-icon-rectangle {
+	width: 28px;
+	height: 18px;
+	border: 2px solid #555555;
+}
+
+.choice-icon-swatch {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /********** playbar **********/
@@ -274,6 +308,7 @@ div[big=yes] .play-button-icon {
 div[big=no] .play-button-icon {
 	--ggs: 1.0;
 }
+
 /********** modal **********/
 #modal-container {
 	display: none;
@@ -377,7 +412,7 @@ div[big=no] .play-button-icon {
 }
 
 .toolbar-button[selected=yes] {
-	background-color: #999999;
+	background-color: #c1dcff;
 }
 
 .gg-text {

@@ -1,4 +1,4 @@
-class Node extends Item {
+class Stock extends Item {
     static DEFAULT_SIGNAL_DELTA_MULTIPLIER = 0.33;
     static DEFAULT_HUE = 0;
     static #ID_COUNTER = 0;
@@ -16,22 +16,22 @@ class Node extends Item {
             5: "#A97FFF" // purple
         };
     }
-    static #nodes = {};
-    static getNode(id) { return Node.#nodes[id]; }
+    static #stocks = {};
+    static getStock(id) { return Stock.#stocks[id]; }
 
     #id; #x; #y;
-    #radius = Node.#DEFAULT_RADIUS;
-    #label = Node.#DEFAULT_LABEL;
-    #hue = Node.DEFAULT_HUE;
-    #initialValue = Node.#DEFAULT_VALUE;
+    #radius = Stock.#DEFAULT_RADIUS;
+    #label = Stock.#DEFAULT_LABEL;
+    #hue = Stock.DEFAULT_HUE;
 
     #controls = { visible: false, alpha: 0, direction: 0, selected: false, pressed: false }
     #offset = { main: 0, goTo: 0, vel: 0, acc: 0, damp: 0, hookes: 0 }
     #listeners = { modelreset: null, mousedown: null, mousemove: null, mouseup: null }
-    #edges = { inbound: [], outbound: [] }
+    #flows = { inbound: [], outbound: [] }
+    #innerRadius;
 
+    #initialValue = Stock.#DEFAULT_VALUE;
     #currentValue;
-    #circleRadius;
 
     get id() { return this.#id; }
     get x() { return this.#x; }
@@ -40,7 +40,8 @@ class Node extends Item {
     get label() { return this.#label; }
     get hue() { return this.#hue; }
     get initialValue() { return this.#initialValue; }
-    get color() { return Node.#COLORS[this.#hue]; }
+    get color() { return Stock.#COLORS[this.#hue]; }
+    get shape() { return this instanceof RectangleStock ? 1 : 0; }
 
     set x(x) { this.#x = x; }
     set y(y) { this.#y = y; }
@@ -48,9 +49,10 @@ class Node extends Item {
     set label(label) { this.#label = label; }
     set hue(hue) { this.#hue = hue; }
     set initialValue(initialValue) { this.#initialValue = initialValue; }
+    set shape(value) { publish("model/stock/shape", [this, value]); }
 
     constructor(configuration) {
-        super(Item.NODE, configuration);
+        super(Item.STOCK, configuration);
 
         _validateTrue(configuration.x && configuration.x >= 0, "X axis coordinate 'x' must be provided in configuration as a non-negative number.");
         _validateTrue(configuration.y && configuration.y >= 0, "Y axis coordinate 'y' must be provided in configuration as a non-negative number.");
@@ -68,12 +70,12 @@ class Node extends Item {
         this.#id = this.generateId(configuration.id);
     }
 
-    addInboundEdge(edge) {
-        this.#edges.inbound.push(edge);
+    addInboundFlow(flow) {
+        this.#flows.inbound.push(flow);
     }
 
-    addOutboundEdge(edge) {
-        this.#edges.outbound.push(edge);
+    addOutboundFlow(flow) {
+        this.#flows.outbound.push(flow);
     }
 
     getBoundingBox(context) {
@@ -89,28 +91,41 @@ class Node extends Item {
         var x = this.x * 2;
         var y = this.y * 2;
         var r = this.radius * 2;
-        var color = Node.#COLORS[this.hue];
+        var color = Stock.#COLORS[this.hue];
 
         context.save();
         context.translate(x, y + this.#offset.main);
 
         // highlight selected
         if (this.selected) {
-            context.beginPath();
-            context.arc(0, 0, r + 40, 0, Math.TAU, false);
-            context.fillStyle = HIGHLIGHT_COLOR;
-            context.fill();
+            this.drawHighlight(context, r);
         }
 
-        // white-gray bubble with colored border
-        context.beginPath();
-        context.arc(0, 0, r - 2, 0, Math.TAU, false);
-        context.fillStyle = "#ffffff";
-        context.fill();
-        context.lineWidth = 6;
-        context.strokeStyle = color;
-        context.stroke();
+        // draw base shape
+        this.drawShape(context, color, r);
 
+        // inner colored value bubble
+        this.drawValue(context, color, r);
+
+        // label
+        this.drawLabel(context, r);
+
+        // controls
+        this.drawControls(context, configuration);
+
+        // restore
+        context.restore();
+    }
+
+    drawHighlight(context, r) {
+        _throwErrorMessage("drawHighlight not implemented in Stock base class");
+    }
+
+    drawShape(context, color, r) {
+        _throwErrorMessage("drawShape not implemented in Stock base class");
+    }
+
+    drawValue(context, color, r) {
         // radius is inverse tangent (in radians) (atan) of value
         var _r = Math.atan(this.#currentValue * 5);
         _r = _r / (Math.PI / 2);
@@ -132,16 +147,17 @@ class Node extends Item {
                 _value = 1 - (1 / this.#currentValue) * 0.1;
             }
         }
-        var _circleRadiusGoto = r * _value; // radius
-        this.#circleRadius = this.#circleRadius * 0.8 + _circleRadiusGoto * 0.2;
+        var _innerRadiusGoto = r * _value; // radius
+        this.#innerRadius = (this.#innerRadius || 0) * 0.8 + _innerRadiusGoto * 0.2;
 
-        // colored bubble
-        context.beginPath();
-        context.arc(0, 0, this.#circleRadius, 0, Math.TAU, false);
-        context.fillStyle = color;
-        context.fill();
+        this.drawValueShape(context, color, this.#innerRadius);
+    }
 
-        // label
+    drawValueShape(context, color, innerSize) {
+        _throwErrorMessage("drawValueShape not implemented in Stock base class");
+    }
+
+    drawLabel(context, r) {
         var fontsize = 40;
         context.font = "normal " + fontsize + "px sans-serif";
         context.textAlign = "center";
@@ -154,7 +170,9 @@ class Node extends Item {
             width = context.measureText(this.#label).width;
         }
         context.fillText(this.#label, 0, 0);
+    }
 
+    drawControls(context, configuration) {
         // WOBBLE CONTROLS
         var cl = 40;
         var cy = 0;
@@ -180,14 +198,11 @@ class Node extends Item {
         context.lineTo(cl, cy + cl);
         context.lineWidth = (this.#controls.direction < 0) ? 10 : 3;
         context.stroke();
-
-        // restore
-        context.restore();
     }
 
     initialize(model, mouse) {
         this.#reset();
-        this.#circleRadius = 0;
+        this.#innerRadius = 0;
 
         this.#listeners.modelreset = subscribe("model/reset", function () { this.#onModelReset(model) }.bind(this));
         this.#listeners.mousedown = subscribe("mousedown", function () { this.#onMouseDown(model, mouse) }.bind(this));
@@ -195,19 +210,19 @@ class Node extends Item {
         this.#listeners.mouseup = subscribe("mouseup", function () { this.#onMouseUp(model, mouse) }.bind(this));
     }
 
-    isPointInNode(context, x, y, buffer) {
-        return _isPointInCircle(x, y, this.x, this.y, this.radius + (buffer || 0));
+    isPointInStock(context, x, y, buffer) {
+        _throwErrorMessage("isPointInStock not implemented in Stock base class");
     };
 
-    kill() {
+    kill(silent) {
         unsubscribe("model/reset", this.#listeners.modelreset);
         unsubscribe("mousedown", this.#listeners.mousedown);
         unsubscribe("mousemove", this.#listeners.mousemove);
         unsubscribe("mouseup", this.#listeners.mouseup);
 
-        delete Node.#nodes[this.id];
+        delete Stock.#stocks[this.id];
 
-        publish("kill", [this]);
+        if (!silent) publish("kill", [this]);
     };
 
     move(x, y) {
@@ -215,12 +230,12 @@ class Node extends Item {
         this.y = y;
     }
 
-    removeInboundEdge(edge) {
-        this.#edges.inbound.splice(this.#edges.inbound.indexOf(edge), 1);
+    removeInboundFlow(flow) {
+        this.#flows.inbound.splice(this.#flows.inbound.indexOf(flow), 1);
     }
 
-    removeOutboundEdge(edge) {
-        this.#edges.outbound.splice(this.#edges.outbound.indexOf(edge), 1);
+    removeOutboundFlow(flow) {
+        this.#flows.outbound.splice(this.#flows.outbound.indexOf(flow), 1);
     }
 
     takeSignal(signal) {
@@ -238,7 +253,7 @@ class Node extends Item {
         // Cursor!
         if (this.#controls.selected) mouse.showCursor("pointer");
 
-        // Visually & vertically bump the node
+        // Visually & vertically bump the stock
         var gotoAlpha = (this.#controls.visible) ? 1 : 0;
         this.#controls.alpha = this.#controls.alpha * 0.5 + gotoAlpha * 0.5;
         if (configuration.isPlaying && this.#controls.pressed) {
@@ -261,20 +276,20 @@ class Node extends Item {
     }
 
     #sendSignal(signal) {
-        var edges = this.#edges.outbound;
-        for (var i = 0; i < edges.length; i++) {
-            edges[i].addSignal(signal);
+        var flows = this.#flows.outbound;
+        for (var i = 0; i < flows.length; i++) {
+            flows[i].addSignal(signal);
         }
     };
 
     generateId(id) {
         if (id !== undefined) {
-            _validateTrue(!Node.#nodes[id], "ID is already in use!");
+            _validateTrue(!Stock.#stocks[id], "ID is already in use!");
         } else {
-            do { id = Node.#ID_COUNTER++; } while (Node.#nodes[id]);
+            do { id = Stock.#ID_COUNTER++; } while (Stock.#stocks[id]);
         }
 
-        Node.#nodes[id] = this;
+        Stock.#stocks[id] = this;
         return id;
     }
 
@@ -289,7 +304,7 @@ class Node extends Item {
 
         this.#controls.pressed = this.#controls.selected;
         if (this.#controls.pressed) {
-            var delta = this.#controls.direction * Node.DEFAULT_SIGNAL_DELTA_MULTIPLIER;
+            var delta = this.#controls.direction * Stock.DEFAULT_SIGNAL_DELTA_MULTIPLIER;
             this.#currentValue += delta;
 
             this.#sendSignal({ delta: delta });
@@ -298,7 +313,7 @@ class Node extends Item {
     #onMouseMove(model, mouse) {
         if (!model.isPlaying()) return;
 
-        this.#controls.selected = this.isPointInNode(model.context, mouse.x, mouse.y);
+        this.#controls.selected = this.isPointInStock(model.context, mouse.x, mouse.y);
         this.#controls.visible = this.#controls.selected;
         this.#controls.direction = this.#controls.selected ? (mouse.y < this.y) ? 1 : -1 : 0;
     }

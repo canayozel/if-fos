@@ -1,12 +1,12 @@
-class Edge extends Item {
+class Flow extends Item {
     static get #MAX_SIGNALS() { return 100; };
-    static get #MAX_SIGNALS_PER_EDGE() { return 10; };
+    static get #MAX_SIGNALS_PER_FLOW() { return 10; };
 
     static DEFAULT_STRENGTH = 1;
 
     static #allSignals = [];
 
-    #source; #target; #arc = 100; #rotation = 0; #strength = Edge.DEFAULT_STRENGTH;
+    #source; #target; #arc = 100; #rotation = 0; #strength = Flow.DEFAULT_STRENGTH;
 
     #signal = { data: [], speed: 0, size: 40 };
     #listeners = { modelreset: null };
@@ -34,10 +34,10 @@ class Edge extends Item {
     set strength(strength) { return this.#strength = strength; }
 
     constructor(configuration) {
-        super(Item.EDGE, configuration);
+        super(Item.FLOW, configuration);
 
-        _validateAssigned(configuration.source, "Source node 'source' must be provided in configuration.");
-        _validateAssigned(configuration.target, "Target node 'target' must be provided in configuration.");
+        _validateAssigned(configuration.source, "Source stock 'source' must be provided in configuration.");
+        _validateAssigned(configuration.target, "Target stock 'target' must be provided in configuration.");
 
         this.#source = configuration.source;
         this.#target = configuration.target;
@@ -46,18 +46,18 @@ class Edge extends Item {
         if (configuration.rotation !== undefined) this.#rotation = configuration.rotation;
         if (configuration.strength !== undefined) this.#strength = configuration.strength;
 
-        this.source.addOutboundEdge(this);
-        this.target.addInboundEdge(this);
+        this.source.addOutboundFlow(this);
+        this.target.addInboundFlow(this);
     }
 
     addSignal(signal) {
         // if too many overall just return
-        if (Edge.#allSignals.length > Edge.#MAX_SIGNALS) {
+        if (Flow.#allSignals.length > Flow.#MAX_SIGNALS) {
             return;
         }
 
         // if too many overall just return
-        if (this.signals.length > Edge.#MAX_SIGNALS_PER_EDGE) {
+        if (this.signals.length > Flow.#MAX_SIGNALS_PER_FLOW) {
             return;
         }
 
@@ -82,7 +82,7 @@ class Edge extends Item {
         this.signals.unshift(newSignal);
 
         // add to all signals
-        Edge.#allSignals.push(newSignal);
+        Flow.#allSignals.push(newSignal);
     };
 
     getBoundingBox(context) {
@@ -199,8 +199,8 @@ class Edge extends Item {
         this.#listeners.modelreset = subscribe("model/reset", function () { this.#onModelReset(model) }.bind(this));
     }
 
-    isAssociated(node) {
-        return this.source == node || this.target == node;
+    isAssociated(stock) {
+        return this.source == stock || this.target == stock;
     };
 
     isLoop() {
@@ -214,8 +214,8 @@ class Edge extends Item {
     kill() {
         unsubscribe("model/reset", this.#listeners.modelreset);
 
-        this.source.removeOutboundEdge(this);
-        this.target.removeInboundEdge(this);
+        this.source.removeOutboundFlow(this);
+        this.target.removeInboundFlow(this);
 
         publish("kill", [this]);
     };
@@ -230,11 +230,11 @@ class Edge extends Item {
             var minimumMag = this.source.radius + 25;
             mag = Math.max(mag, minimumMag);
 
-            // update edge
+            // update flow
             this.#arc = mag;
             this.#rotation = a * (360 / Math.TAU) + 90;
         } else {
-            // the Arc: whatever label *Y* is, relative to angle & first node's pos
+            // the Arc: whatever label *Y* is, relative to angle & first stock's pos
             var sx = this.source.x;
             var sy = this.source.y;
             var tx = this.target.x;
@@ -256,7 +256,7 @@ class Edge extends Item {
     }
 
     update(mouse, configuration) {
-        // Edge case: if arc is EXACTLY zero, whatever, add 0.1 to it.
+        // Flow case: if arc is EXACTLY zero, whatever, add 0.1 to it.
         if (this.#arc == 0) this.#arc = 0.1;
 
         // retina calculations
@@ -453,11 +453,11 @@ class Edge extends Item {
 
     #removeSignal(signal) {
         this.signals.splice(this.signals.indexOf(signal), 1);
-        Edge.#allSignals.splice(Edge.#allSignals.indexOf(signal), 1);
+        Flow.#allSignals.splice(Flow.#allSignals.indexOf(signal), 1);
     };
 
     #reset() {
-        Edge.#allSignals = [];
+        Flow.#allSignals = [];
         this.#signal.data = [];
     }
 

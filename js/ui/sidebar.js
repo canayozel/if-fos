@@ -2,8 +2,8 @@ class Sidebar extends UI {
     static get #BACK_BUTTON_TEXT() { return "go back" };
 
     static get PAGE_ID_DEFAULT() { return "DEFAULT" };
-    static get PAGE_ID_NODE() { return "NODE" };
-    static get PAGE_ID_EDGE() { return "EDGE" };
+    static get PAGE_ID_STOCK() { return "STOCK" };
+    static get PAGE_ID_FLOW() { return "FLOW" };
     static get PAGE_ID_TEXT() { return "TEXT" };
 
 
@@ -11,17 +11,19 @@ class Sidebar extends UI {
         super(dom)
 
         this.addPage(Sidebar.PAGE_ID_DEFAULT, this.#initializeDefaultPage());
-        this.addPage(Sidebar.PAGE_ID_NODE, this.#initializeNodeEditPage());
-        this.addPage(Sidebar.PAGE_ID_EDGE, this.#initializeEdgeEditPage());
+        this.addPage(Sidebar.PAGE_ID_STOCK, this.#initializeStockEditPage());
+        this.addPage(Sidebar.PAGE_ID_FLOW, this.#initializeFlowEditPage());
         this.addPage(Sidebar.PAGE_ID_TEXT, this.#initializeTextEditPage());
 
         this.showPage(Sidebar.PAGE_ID_DEFAULT);
 
-        // go back to main when editing is killed
         subscribe("kill", function (item) {
             if (this.currentPage.target == item) {
                 this.showPage(Sidebar.PAGE_ID_DEFAULT);
             }
+        }.bind(this));
+        subscribe("model/stock/replaced", function (newStock) {
+            this.edit(newStock);
         }.bind(this));
     }
 
@@ -30,7 +32,7 @@ class Sidebar extends UI {
         this.currentPage.edit(object);
     };
 
-    #initializeNodeEditPage() {
+    #initializeStockEditPage() {
         var page = new SidebarPage();
         page.addComponent(new ComponentButton(page, "", {
             header: true,
@@ -40,61 +42,70 @@ class Sidebar extends UI {
         page.addComponent(new ComponentInput(page, "label", {
             label: "<br><br>Name:"
         }));
-        page.addComponent(new ComponentSlider(page, "hue", {
-            bg: "color",
+        page.addComponent(new ComponentChoice(page, "hue", {
             label: "Color:",
             options: [0, 1, 2, 3, 4, 5],
-            oninput: function (value) { Node.DEFAULT_HUE = value; }
+            iconColors: ["#f1c40f", "#e67e22", "#e74c3c", "#9b59b6", "#3498db", "#2ecc71"],
+            oninput: function (value) { Stock.DEFAULT_HUE = value; }
         }));
-        page.addComponent(new ComponentSlider(page, "initialValue", {
-            bg: "initial",
+        page.addComponent(new ComponentChoice(page, "initialValue", {
             label: "Start Amount:",
             options: [0, 0.16, 0.33, 0.50, 0.66, 0.83, 1],
-            oninput: function (value) { Node.DEFAULT_HUE = value; }
-
+            labels: ["0", "1", "2", "3", "4", "5", "6"]
+        }));
+        page.addComponent(new ComponentChoice(page, "shape", {
+            label: "Shape:",
+            options: [0, 1],
+            iconClasses: ["choice-icon-circle", "choice-icon-rectangle"]
         }));
         page.addComponent(new ComponentButton(page, "", {
-            label: "delete node",
-            onclick: function (node) {
-                node.kill();
+            label: "delete stock",
+            onclick: function (stock) {
+                stock.kill();
                 this.showPage(Sidebar.PAGE_ID_DEFAULT);
             }.bind(this)
         }));
 
         page.onEdit = function () {
-            var node = page.target;
-            var color = node.color;
-            page.getComponent("initialValue").setBGColor(color);
+            var stock = page.target;
+            var color = stock.color;
+            page.getComponent("initialValue").setBGColor(window.HIGHLIGHT_COLOR);
+            page.getComponent("shape").setBGColor(window.HIGHLIGHT_COLOR);
 
-            var name = node.label;
+            var name = stock.label;
             if (name == "" || name == "?") page.getComponent("label").select();
         };
         return page;
     }
 
-    #initializeEdgeEditPage() {
+    #initializeFlowEditPage() {
         var page = new SidebarPage();
         page.addComponent(new ComponentButton(page, "", {
             header: true,
             label: Sidebar.#BACK_BUTTON_TEXT,
             onclick: function () { this.showPage(Sidebar.PAGE_ID_DEFAULT); }.bind(this)
         }));
-        page.addComponent(new ComponentSlider(page, "strength", {
-            bg: "strength",
-            label: "<br><br>Relationship:",
+        page.addComponent(new ComponentChoice(page, "strength", {
+            label: "<br><br>Flow Type:",
             options: [1, -1],
-            oninput: function (value) { Edge.DEFAULT_STRENGTH = value; }
+            labels: ["Increase (+)", "Decrease (-)"],
+            oninput: function (value) { Flow.DEFAULT_STRENGTH = value; }
         }));
         page.addComponent(new ComponentHTML(page, "", {
-            html: "(to make a stronger relationship, draw multiple arrows!) <br><br>(to make a delayed relationship, draw longer arrows)"
+            html: "(to make a stronger flow, draw multiple arrows!) <br><br>(to make a delayed flow, draw longer arrows)"
         }));
         page.addComponent(new ComponentButton(page, "", {
-            label: "delete edge",
-            onclick: function (edge) {
-                edge.kill();
+            label: "delete flow",
+            onclick: function (flow) {
+                flow.kill();
                 this.showPage(Sidebar.PAGE_ID_DEFAULT);
             }.bind(this)
         }));
+
+        page.onEdit = function () {
+            page.getComponent("strength").setBGColor(window.HIGHLIGHT_COLOR);
+        };
+
         return page;
     }
 
@@ -141,7 +152,7 @@ class Sidebar extends UI {
             html: "" +
                 "<b style='font-size:1.4em'>FOS</b> <br>a tool for simulating financial orchestration<br><br>" +
                 "<hr/><br>"
-    
+
         }));
         return page;
     }
@@ -195,78 +206,71 @@ class SidebarPage extends UIPage {
     onEdit() { }
 }
 
-class ComponentSlider extends Component {
+
+class ComponentChoice extends Component {
+    #currentColor;
+    #container;
+
     constructor(page, propertyName, configuration) {
         super(page, propertyName, configuration);
 
-        this.isDragging = false;
+        this.choices = [];
+        this.#container = document.createElement("div");
+        this.#container.setAttribute("class", "component-choice-container");
 
-        // Slider DOM: graphic + pointer
-        this.slider = new Image();
-        this.slider.draggable = false;
-        this.slider.src = "img/sliders/" + configuration.bg + ".png";
-        this.slider.setAttribute("class", "component-slider-graphic");
+        for (var i = 0; i < configuration.options.length; i++) {
+            var choice = document.createElement("div");
+            choice.setAttribute("class", "component-choice");
 
-        this.pointer = new Image();
-        this.pointer.draggable = false;
-        this.pointer.src = "img/sliders/slider_pointer.png";
-        this.pointer.setAttribute("class", "component-slider-pointer");
+            var icon = document.createElement("div");
+            if (configuration.labels) {
+                choice.innerHTML = configuration.labels[i];
+            } else if (configuration.iconClasses) {
+                icon.setAttribute("class", configuration.iconClasses[i]);
+                choice.appendChild(icon);
+            } else if (configuration.iconColors) {
+                icon.setAttribute("class", "choice-icon-swatch");
+                icon.style.backgroundColor = configuration.iconColors[i];
+                choice.appendChild(icon);
+            } else {
+                choice.innerHTML = configuration.options[i];
+            }
 
-        var sliderDOM = document.createElement("div");
-        sliderDOM.setAttribute("class", "component-slider");
-        sliderDOM.appendChild(this.slider);
-        sliderDOM.appendChild(this.pointer);
+            choice.onclick = function (index) {
+                this.setTargetPropertyValue(this.configuration.options[index]);
+                this.show();
+                if (this.configuration.oninput) {
+                    this.configuration.oninput(this.configuration.options[index]);
+                }
+            }.bind(this, i);
+
+            this.#container.appendChild(choice);
+            this.choices.push(choice);
+        }
 
         var label = _createLabel(this.configuration.label);
         this.dom.appendChild(label);
-        this.dom.appendChild(sliderDOM);
-
-        _addMouseEvents(this.slider, this);
+        this.dom.appendChild(this.#container);
     }
 
-    movePointer() {
-        var value = this.getTargetPropertyValue();
-        var optionIndex = this.configuration.options.indexOf(value);
-        var x = (optionIndex + 0.5) * (250 / this.configuration.options.length);
-        this.pointer.style.left = (x - 7.5) + "px";
-    };
-
-    onMouseDown(event) {
-        this.isDragging = true;
-        this.sliderInput(event);
-    };
-
-    onMouseUp() {
-        this.isDragging = false;
-    };
-
-    onMouseMove(event) {
-        if (this.isDragging) {
-            this.sliderInput(event);
-        }
-    };
-
-    sliderInput(event) {
-        // What's the option?
-        var index = event.x / 250;
-        var optionIndex = Math.floor(index * this.configuration.options.length);
-        var option = this.configuration.options[optionIndex];
-        if (option === undefined) return;
-        this.setTargetPropertyValue(option);
-
-        if (this.configuration.oninput) {
-            this.configuration.oninput(option);
-        }
-
-        this.movePointer();
-    };
-
     show() {
-        this.movePointer();
-    };
+        var value = this.getTargetPropertyValue();
+        for (var i = 0; i < this.choices.length; i++) {
+            if (this.configuration.options[i] === value) {
+                this.choices[i].setAttribute("selected", "yes");
+                if (this.#currentColor) {
+                    this.choices[i].style.backgroundColor = this.#currentColor;
+                }
+            } else {
+                this.choices[i].removeAttribute("selected");
+                this.choices[i].style.backgroundColor = "";
+            }
+        }
+    }
 
     setBGColor(color) {
-        this.slider.style.background = color;
+        this.#currentColor = color;
+        this.show();
     };
 }
 

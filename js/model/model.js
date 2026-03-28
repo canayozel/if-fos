@@ -3,8 +3,8 @@ class Model {
     static get MODE_PLAY() { return 1; };
 
     #texts = [];
-    #nodes = [];
-    #edges = [];
+    #stocks = [];
+    #flows = [];
     #stroke = [];
 
     #dom;
@@ -47,34 +47,37 @@ class Model {
         this.#canvas = _createCanvas(this.#dom);
         this.#context = this.#canvas.getContext("2d");
 
-        subscribe("model/reset", function () { this.#drawCountdown = this.#drawCountdownFull; }.bind(this));
-        subscribe("mousemove", function () { this.#drawCountdown = this.#drawCountdownFull; }.bind(this));
-        subscribe("mousedown", function () { this.#drawCountdown = this.#drawCountdownFull; }.bind(this));
-        subscribe("resize", function () { this.#drawCountdown = this.#drawCountdownFull; }.bind(this));
-        subscribe("kill", function (item) { this.#removeItem(item) }.bind(this));
-        subscribe("model/changed", function (source) {
+        subscribe("model/reset", () => { this.#drawCountdown = this.#drawCountdownFull; });
+        subscribe("mousemove", () => { this.#drawCountdown = this.#drawCountdownFull; });
+        subscribe("mousedown", () => { this.#drawCountdown = this.#drawCountdownFull; });
+        subscribe("resize", () => { this.#drawCountdown = this.#drawCountdownFull; });
+        subscribe("kill", (item) => { this.#removeItem(item) });
+        subscribe("model/changed", (source) => {
             if (this.isComposing()) this.#drawCountdown = this.#drawCountdownFull;
             this.dirty = source == "stroke";
-        }.bind(this));
-        subscribe("tool/changed", function (tool, grabbed) {
+        });
+        subscribe("tool/changed", (tool, grabbed) => {
             var postfix = grabbed ? "-grabbed" : "";
             this.#dom.setAttribute("cursor", tool + postfix);
             this.removeStroke();
-        }.bind(this));
+        });
+        subscribe("model/stock/shape", (stock, shape) => {
+            this.replaceStock(stock, shape);
+        });
     }
 
     autoSignal(signal) {
         if (signal && Array.isArray(signal) && signal.length == 2) {
-            var node = Node.getNode(signal[0]);
-            if (node) {
+            var stock = Stock.getStock(signal[0]);
+            if (stock) {
                 var direction = signal[1] && signal[1] > 0 ? 1 : -1;
-                node.takeSignal({ delta: direction * Node.DEFAULT_SIGNAL_DELTA_MULTIPLIER });
+                stock.takeSignal({ delta: direction * Stock.DEFAULT_SIGNAL_DELTA_MULTIPLIER });
             }
         }
     }
 
     center(scale) {
-        if (this.#nodes.length == 0 && this.#texts.length == 0) return;
+        if (this.#stocks.length == 0 && this.#texts.length == 0) return;
 
         var bounds = this.getBounds();
         var cx = (bounds.left + bounds.right) / 2;
@@ -98,11 +101,11 @@ class Model {
             var offsetX = (this.#dom.clientWidth + this.#padding.all) / 2 - cx;
             var offsetY = (this.#dom.clientHeight - this.#padding.bottom) / 2 - cy;
 
-            // move all nodes
-            for (var i = 0; i < this.#nodes.length; i++) {
-                var node = this.#nodes[i];
-                node.x += offsetX;
-                node.y += offsetY;
+            // move all stocks
+            for (var i = 0; i < this.#stocks.length; i++) {
+                var stock = this.#stocks[i];
+                stock.x += offsetX;
+                stock.y += offsetY;
             }
 
             // move all texts
@@ -115,8 +118,8 @@ class Model {
     };
 
     clear() {
-        while (this.#nodes.length > 0) {
-            this.#nodes[0].kill();
+        while (this.#stocks.length > 0) {
+            this.#stocks[0].kill();
         }
 
         while (this.#texts.length > 0) {
@@ -129,32 +132,33 @@ class Model {
 
         var data = JSON.parse(data);
 
-        var nodes = data[0];
-        var edges = data[1];
+        var stocks = data[0];
+        var flows = data[1];
         var texts = data[2];
 
-        // nodes
-        for (var i = 0; i < nodes.length; i++) {
-            var node = nodes[i];
-            this.addNode(animationConfiguration, {
-                id: node[0],
-                x: node[1],
-                y: node[2],
-                initialValue: node[3],
-                label: decodeURIComponent(node[4]),
-                hue: node[5]
+        // stocks
+        for (var i = 0; i < stocks.length; i++) {
+            var stock = stocks[i];
+            this.addStock(animationConfiguration, {
+                id: stock[0],
+                x: stock[1],
+                y: stock[2],
+                initialValue: stock[3],
+                label: decodeURIComponent(stock[4]),
+                hue: stock[5],
+                shape: stock[6]
             });
         }
 
-        // edges
-        for (var i = 0; i < edges.length; i++) {
-            var edge = edges[i];
-            this.addEdge(animationConfiguration, {
-                source: Node.getNode(edge[0]),
-                target: Node.getNode(edge[1]),
-                arc: edge[2],
-                strength: edge[3],
-                rotation: edge[4]
+        // flows
+        for (var i = 0; i < flows.length; i++) {
+            var flow = flows[i];
+            this.addFlow(animationConfiguration, {
+                source: Stock.getStock(flow[0]),
+                target: Stock.getStock(flow[1]),
+                arc: flow[2],
+                strength: flow[3],
+                rotation: flow[4]
             });
         }
 
@@ -193,8 +197,8 @@ class Model {
         }
 
         // draw model only if arrow-signals are moving
-        for (var i = 0; i < this.#edges.length; i++) {
-            if (this.#edges[i].signals.length > 0) {
+        for (var i = 0; i < this.#flows.length; i++) {
+            if (this.#flows[i].signals.length > 0) {
                 this.#drawCountdown = this.#drawCountdownFull;
                 break;
             }
@@ -234,15 +238,15 @@ class Model {
 
         // draw all
         for (var i = 0; i < this.#texts.length; i++) this.#texts[i].draw(this.#context, configuration);
-        for (var i = 0; i < this.#edges.length; i++) this.#edges[i].draw(this.#context, configuration);
-        for (var i = 0; i < this.#nodes.length; i++) this.#nodes[i].draw(this.#context, configuration);
+        for (var i = 0; i < this.#flows.length; i++) this.#flows[i].draw(this.#context, configuration);
+        for (var i = 0; i < this.#stocks.length; i++) this.#stocks[i].draw(this.#context, configuration);
 
         // restore
         this.#context.restore();
     };
 
     getBounds() {
-        if (this.#nodes.length == 0 && this.#texts.length == 0) return;
+        if (this.#stocks.length == 0 && this.#texts.length == 0) return;
 
         // get bounds of all objects
         var left = Infinity;
@@ -261,8 +265,8 @@ class Model {
             }
         }.bind(this);
 
-        processItems(this.#nodes);
-        processItems(this.#edges);
+        processItems(this.#stocks);
+        processItems(this.#flows);
         processItems(this.#texts);
 
         return {
@@ -283,36 +287,37 @@ class Model {
     }
 
     serialize() {
-        var data = []; // 0: nodes, 1: edges, 2: labels, 3: UID
+        var data = []; // 0: stocks, 1: flows, 2: labels, 3: UID
 
-        // nodes
-        var nodes = [];
-        for (var i = 0; i < this.#nodes.length; i++) {
-            var node = this.#nodes[i];
+        // stocks
+        var stocks = [];
+        for (var i = 0; i < this.#stocks.length; i++) {
+            var stock = this.#stocks[i];
 
             // 0: id, 1: x, 2: y, 3: initialValue, 4: label, 5: hue
-            nodes.push([
-                node.id,
-                Math.round(node.x),
-                Math.round(node.y),
-                node.initialValue,
-                encodeURIComponent(encodeURIComponent(node.label)),
-                node.hue
+            stocks.push([
+                stock.id,
+                Math.round(stock.x),
+                Math.round(stock.y),
+                stock.initialValue,
+                encodeURIComponent(encodeURIComponent(stock.label)),
+                stock.hue,
+                stock instanceof RectangleStock ? 1 : 0
             ]);
         }
 
-        // edges
-        var edges = [];
-        for (var i = 0; i < this.#edges.length; i++) {
-            var edge = this.#edges[i];
+        // flows
+        var flows = [];
+        for (var i = 0; i < this.#flows.length; i++) {
+            var flow = this.#flows[i];
 
             // 0: from, 1: to, 2: arc, 3: stregth, 4: rotation
-            edges.push([
-                edge.source.id,
-                edge.target.id,
-                Math.round(edge.arc),
-                edge.strength,
-                edge.isLoop() ? Math.round(edge.rotation) : null
+            flows.push([
+                flow.source.id,
+                flow.target.id,
+                Math.round(flow.arc),
+                flow.strength,
+                flow.isLoop() ? Math.round(flow.rotation) : null
             ]);
         }
 
@@ -329,8 +334,8 @@ class Model {
             ]);
         }
 
-        data.push(nodes);
-        data.push(edges);
+        data.push(stocks);
+        data.push(flows);
         data.push(texts);
 
         // only uri encode quotes, also replace the last character
@@ -361,12 +366,12 @@ class Model {
             this.#texts[i].update(this.#mouse, configuration);
         }
 
-        for (var i = 0; i < this.#edges.length; i++) {
-            this.#edges[i].update(this.#mouse, configuration);
+        for (var i = 0; i < this.#flows.length; i++) {
+            this.#flows[i].update(this.#mouse, configuration);
         }
 
-        for (var i = 0; i < this.#nodes.length; i++) {
-            this.#nodes[i].update(this.#mouse, configuration);
+        for (var i = 0; i < this.#stocks.length; i++) {
+            this.#stocks[i].update(this.#mouse, configuration);
         }
 
         this.#updated = true;
@@ -374,27 +379,32 @@ class Model {
     //**********************************************************************/
     // ITEM METHODS
     /**********************************************************************/
-    addEdge(animationConfiguraiton, edgeConfiguration) {
-        var edge = new Edge(edgeConfiguration);
-        edge.initialize(this, this.#mouse);
+    addFlow(animationConfiguraiton, flowConfiguration) {
+        var flow = new Flow(flowConfiguration);
+        flow.initialize(this, this.#mouse);
 
-        this.#edges.push(edge);
+        this.#flows.push(flow);
 
         publish("model/changed");
 
-        return edge;
+        return flow;
     };
 
-    addNode(animationConfiguraiton, nodeConfiguration) {
-        var node = new Node(nodeConfiguration);
-        node.initialize(this, this.#mouse);
+    addStock(animationConfiguraiton, stockConfiguration) {
+        var stock;
+        if (stockConfiguration.shape === 1 || stockConfiguration.shape === "rectangle") {
+            stock = new RectangleStock(stockConfiguration);
+        } else {
+            stock = new CircleStock(stockConfiguration);
+        }
+        stock.initialize(this, this.#mouse);
 
-        this.#nodes.push(node)
+        this.#stocks.push(stock)
         this.update(animationConfiguraiton);
 
         publish("model/changed");
 
-        return node;
+        return stock;
     }
 
     addStroke(stroke) {
@@ -419,24 +429,24 @@ class Model {
         return this.#stroke;
     };
 
-    getEdgeByCoordinates(x, y, buffer) {
-        for (var i = this.#edges.length - 1; i >= 0; i--) { // top-down
-            var edge = this.#edges[i];
-            if (edge.isPointOnLabel(x, y, buffer)) return edge;
+    getFlowByCoordinates(x, y, buffer) {
+        for (var i = this.#flows.length - 1; i >= 0; i--) { // top-down
+            var flow = this.#flows[i];
+            if (flow.isPointOnLabel(x, y, buffer)) return flow;
         }
         return null;
     };
 
-    getEdgesByStartNode(startNode) {
-        return this.#edges.filter(function (edge) {
-            return (edge.from === startNode);
+    getFlowsByStartStock(startStock) {
+        return this.#flows.filter(function (flow) {
+            return (flow.from === startStock);
         });
     };
 
-    getNodeByCoordinates(x, y, buffer) {
-        for (var i = this.#nodes.length - 1; i >= 0; i--) { // top-down
-            var node = this.#nodes[i];
-            if (node.isPointInNode(this.#context, x, y, buffer)) return node;
+    getStockByCoordinates(x, y, buffer) {
+        for (var i = this.#stocks.length - 1; i >= 0; i--) { // top-down
+            var stock = this.#stocks[i];
+            if (stock.isPointInStock(this.#context, x, y, buffer)) return stock;
         }
         return null;
     };
@@ -449,20 +459,22 @@ class Model {
         return null;
     };
 
-    removeEdge(edge) {
-        this.#edges.splice(this.#edges.indexOf(edge), 1);
+    removeFlow(flow) {
+        this.#flows.splice(this.#flows.indexOf(flow), 1);
 
         publish("model/changed");
     };
 
-    removeNode(node) {
-        this.#nodes.splice(this.#nodes.indexOf(node), 1);
+    removeStock(stock) {
+        var index = this.#stocks.indexOf(stock);
+        if (index === -1) return;
+        this.#stocks.splice(index, 1);
 
-        // Remove all associated TO and FROM edges
-        for (var i = 0; i < this.#edges.length; i++) {
-            var edge = this.#edges[i];
-            if (edge.isAssociated(node)) {
-                edge.kill();
+        // Remove all associated TO and FROM flows
+        for (var i = 0; i < this.#flows.length; i++) {
+            var flow = this.#flows[i];
+            if (flow.isAssociated(stock)) {
+                flow.kill();
                 i--; // move index back, because it's been killed
             }
         }
@@ -481,16 +493,59 @@ class Model {
         publish("model/changed");
     };
 
+    replaceStock(stock, shape) {
+        var stockConfiguration = {
+            id: stock.id,
+            x: stock.x,
+            y: stock.y,
+            label: stock.label,
+            hue: stock.hue,
+            initialValue: stock.initialValue,
+            shape: shape
+        };
+
+        var index = this.#stocks.indexOf(stock);
+
+        // RELEASE the ID before creating the new stock
+        stock.kill(true);
+
+        var newStock;
+        if (shape === 1 || shape === "rectangle") {
+            newStock = new RectangleStock(stockConfiguration);
+        } else {
+            newStock = new CircleStock(stockConfiguration);
+        }
+        newStock.initialize(this, this.#mouse);
+
+        // Update #stocks array
+        if (index !== -1) {
+            this.#stocks[index] = newStock;
+        } else {
+            this.#stocks.push(newStock);
+        }
+
+        // Swap in flows
+        for (var i = 0; i < this.#flows.length; i++) {
+            var flow = this.#flows[i];
+            if (flow.source === stock) flow.source = newStock;
+            if (flow.target === stock) flow.target = newStock;
+        }
+
+        publish("model/stock/replaced", [newStock]);
+        publish("model/changed");
+        return newStock;
+    }
+
     /**********************************************************************/
     // PRIVATE METHODS
     /**********************************************************************/
     #removeItem(item) {
         if (item.type == Item.TEXT) {
             this.removeText(item);
-        } else if (item.type == Item.NODE) {
-            this.removeNode(item);
-        } else if (item.type == Item.EDGE) {
-            this.removeEdge(item);
+        } else if (item.type == Item.STOCK) {
+            this.removeStock(item);
+        } else if (item.type == Item.FLOW) {
+            this.removeFlow(item);
         }
     }
 }
