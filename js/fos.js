@@ -23,7 +23,7 @@ class FOS {
         FOS.#initializeConfigurationParameter(this.#configuration, "animationSpeed", FOS.#DEFAULT_ANIMATION_SPEED, parseInt, parameter => typeof parameter == "number");
 
         // initialize parameters
-        var offset = { x: 0, y: 0, scale: 1 }
+        const offset = {x: 0, y: 0, scale: 1};
         if (this.#configuration.embedded && !this.#configuration.ui) {
             this.#padding.bottom = this.#padding.all;
         }
@@ -192,8 +192,8 @@ class FOS {
 
     #getEdgeSelectionRadius() {
         // radius to use for select 
-        if (this.toolbar.currentTool == Toolbar.TOOL_MOVE || this.toolbar.currentTool != Toolbar.TOOL_PEN) return 40; // selecting, wide radius!
-        else if (this.toolbar.currentTool == Toolbar.TOOL_ERASE) return 25; // no accidental erase
+        if (this.toolbar.currentTool === Toolbar.TOOL_MOVE || this.toolbar.currentTool !== Toolbar.TOOL_PEN) return 40; // selecting, wide radius!
+        else if (this.toolbar.currentTool === Toolbar.TOOL_ERASE) return 25; // no accidental erase
         else return 15; // add text close to edges
     }
 
@@ -242,7 +242,7 @@ class FOS {
 
         window.history.replaceState(null, null, link);
 
-        if (action == Toolbar.TOOL_EMBED) {
+        if (action === Toolbar.TOOL_EMBED) {
             link += "&embedded=1"
         }
 
@@ -253,21 +253,21 @@ class FOS {
         if (!this.model.isComposing()) return true;
 
         // Did user click on a text ? If so, edit THAT text.
-        var clickedText = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
+        const clickedText = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
         if (clickedText) {
             this.sidebar.edit(clickedText);
             return true;
         }
 
         // Did user click on a node ? If so, edit THAT node.
-        var clickedEdge = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
-        if (clickedEdge) {
-            this.sidebar.edit(clickedEdge);
+        const clickedNode = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
+        if (clickedNode) {
+            this.sidebar.edit(clickedNode);
             return true;
         }
 
         // Did user click on an edge ? If so, edit THAT edge.
-        var clickedEdge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
+        const clickedEdge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
         if (clickedEdge) {
             this.sidebar.edit(clickedEdge);
             return true;
@@ -278,10 +278,10 @@ class FOS {
     #registerTextTool() {
         // subscriptions
         subscribe("mouseclick", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_TEXT) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_TEXT) return;
             if (this.#selectItemToEdit()) return;
 
-            if (this.sidebar.currentPage.id != Sidebar.PAGE_ID_TEXT) {
+            if (this.sidebar.currentPage.id !== Sidebar.PAGE_ID_TEXT) {
                 var newText = this.model.addText(this.#getAnimationConfiguration(), {
                     x: this.mouse.x,
                     y: this.mouse.y + 10, // to make text actually centered
@@ -296,7 +296,7 @@ class FOS {
 
     #registerEraseTool() {
         var erase = function (clicked) {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_ERASE) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_ERASE) return;
 
             if (this.mouse.pressed || clicked) {
                 var text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
@@ -318,15 +318,15 @@ class FOS {
         var dragging, offset = { x: 0, y: 0 };
         // subscriptions
         subscribe("mouseclick", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_MOVE) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
             if (this.#selectItemToEdit()) return;
             this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
         }.bind(this));
 
         subscribe("mousedown", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_MOVE) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
 
-            var text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
+            const text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
             if (text) {
                 dragging = text;
                 offset.x = this.mouse.x - text.x;
@@ -336,7 +336,7 @@ class FOS {
                 return;
             }
 
-            var node = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
+            const node = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
             if (node) {
                 dragging = node;
                 offset.x = this.mouse.x - node.x;
@@ -346,20 +346,19 @@ class FOS {
                 return;
             }
 
-            var edge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
+            const edge = this.model.getEdgeByCoordinates(this.mouse.x, this.mouse.y, this.#getEdgeSelectionRadius());
             if (edge) {
                 dragging = edge;
                 offset.x = this.mouse.x - edge.x;
                 offset.y = this.mouse.y - edge.y;
                 this.sidebar.edit(edge);
                 publish("tool/changed", [Toolbar.TOOL_MOVE, true])
-                return;
             }
 
         }.bind(this));
 
         subscribe("mousemove", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_MOVE) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
             if (dragging) {
                 dragging.move(this.mouse.x - offset.x, this.mouse.y - offset.y);
 
@@ -370,7 +369,7 @@ class FOS {
         }.bind(this));
 
         subscribe("mouseup", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_MOVE) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
             publish("tool/changed", [Toolbar.TOOL_MOVE])
             dragging = null;
             offset.x = 0;
@@ -380,44 +379,44 @@ class FOS {
 
     #registerPenTool() {
         subscribe("mouseclick", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_PEN) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_PEN) return;
             this.model.removeStroke();
             if (this.#selectItemToEdit()) return;
             this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
         }.bind(this));
 
         subscribe("mousedown", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_PEN) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_PEN) return;
 
             this.model.addStroke([this.mouse.x, this.mouse.y]);
             this.model.draw(this.#getAnimationConfiguration());
         }.bind(this));
 
         subscribe("mousemove", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_PEN) return;
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_PEN) return;
             this.model.draw(this.#getAnimationConfiguration());
         }.bind(this));
 
         subscribe("mouseup", function () {
-            if (!this.model.isComposing() || this.toolbar.currentTool != Toolbar.TOOL_PEN) return;
-            var stroke = this.model.getStroke();
+            if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_PEN) return;
+            const stroke = this.model.getStroke();
 
             if (!stroke || stroke.length < 2) return;
             if (!this.mouse.moved) return;
 
             // detect which item draw
             // if started in a node and ended near/in a node, it is an edge else it is a node
-            var startPoint = stroke[0];
-            var sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 0);
+            const startPoint = stroke[0];
+            let sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 0);
             if (!sourceNode) sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 20); // try again with buffer
 
-            var endPoint = stroke[stroke.length - 1];
-            var targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 0);
+            const endPoint = stroke[stroke.length - 1];
+            let targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 0);
             if (!targetNode) targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 40); // try again with buffer
 
             if (sourceNode && targetNode) { // add edge
-                var edgeConfiguration = { source: sourceNode, target: targetNode }
-                if (sourceNode == targetNode) {
+                let edgeConfiguration = {source: sourceNode, target: targetNode};
+                if (sourceNode === targetNode) {
                     // find rotation first by getting average point
                     var bounds = _getBounds(stroke);
                     var x = (bounds.left + bounds.right) / 2;
@@ -436,7 +435,7 @@ class FOS {
                     edgeConfiguration.arc = bounds.right;
 
 
-                    // if the arc is NOT greated than the radius, don't draw, and otherwise, make sure minimum distance of radius+25)
+                    // if the arc is NOT created than the radius, don't draw, and otherwise, make sure minimum distance of radius+25)
                     if (edgeConfiguration.arc < sourceNode.radius) {
                         edgeConfiguration = null;
                         this.sidebar.edit(sourceNode); // you were probably trying to edit the node
@@ -502,7 +501,7 @@ class FOS {
     }
 
     static #initializeConfigurationParameter(configuration, parameterName, defaultValue, parser, validator) {
-        var parameter = _getParameterByName(parameterName);
+        let parameter = _getParameterByName(parameterName);
         if (parameter) {
             configuration[parameterName] = parser(parameter)
         } else {
@@ -523,14 +522,14 @@ class FOS {
         };
 
         Math.TAU = Math.PI * 2;
-        
-        var os = window.navigator.userAgentData.platform.toLowerCase();
+
+        const os = window.navigator.userAgentData.platform.toLowerCase();
         window.isMacLike = os.indexOf("macos") != -1 ||  os.indexOf("mac os") != -1;
         window.isMobile = window.navigator.userAgentData.mobile;
 
         window.onbeforeunload = function (e) {
             if (window.fos && window.fos.model && window.fos.model.dirty) {
-                var dialogText = "Are you sure you want to leave without saving your changes?";
+                const dialogText = "Are you sure you want to leave without saving your changes?";
                 e.returnValue = dialogText;
                 return dialogText;
             }

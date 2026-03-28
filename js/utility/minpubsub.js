@@ -4,10 +4,10 @@
  * MIT Licensed
  */
 (function (context) {
-  var MinPubSub = {};
+  const MinPubSub = {};
 
   // the topic/subscription hash
-  var cache = context.c_ || {}; //check for 'c_' cache for unit testing
+  const cache = context.c_ || {}; //check for 'c_' cache for unit testing
 
   MinPubSub.publish = function ( /* String */ topic, /* Array? */ args) {
     // summary: 
@@ -24,8 +24,7 @@
     //
     //    publish('/some/topic', ['a','b','c']);
 
-    var subs = cache[topic],
-      len = subs ? subs.length : 0;
+    let subs = cache[topic], len = subs ? subs.length : 0;
 
     //can change loop or reverse array if the order matters
     while (len--) {

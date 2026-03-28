@@ -1,15 +1,10 @@
 /**************************************************************************/
 /**************************************************************************/
 function _addMouseEvents(target, eventSource) {
-	var _onmousedown = function (event) {
-		var _fakeEvent = _onmousemove(event);
-		eventSource.onMouseDown(_fakeEvent);
-	};
-
-	var _onmousemove = function (event) {
-		var _fakeEvent = {};
+	const _onmousemove = function (event) {
+		const _fakeEvent = {};
 		if (event.changedTouches) { // touch
-			var offset = _getTotalOffset(target);
+			const offset = _getTotalOffset(target);
 			_fakeEvent.x = event.changedTouches[0].clientX - offset.left;
 			_fakeEvent.y = event.changedTouches[0].clientY - offset.top;
 			event.preventDefault();
@@ -21,8 +16,13 @@ function _addMouseEvents(target, eventSource) {
 		eventSource.onMouseMove(_fakeEvent);
 		return _fakeEvent;
 	};
-	var _onmouseup = function (event) {
-		var _fakeEvent = {};
+	const _onmousedown = function (event) {
+		const _fakeEvent = _onmousemove(event);
+		eventSource.onMouseDown(_fakeEvent);
+	};
+
+	const _onmouseup = function (event) {
+		const _fakeEvent = {};
 		eventSource.onMouseUp(_fakeEvent);
 	};
 
@@ -39,17 +39,17 @@ function _addMouseEvents(target, eventSource) {
 /**************************************************************************/
 /**************************************************************************/
 function _blendColors(color1, color2, blend) {
-	var color = "#";
-	for (var i = 0; i < 3; i++) {
-		var sub1 = color1.substring(1 + 2 * i, 3 + 2 * i);
-		var sub2 = color2.substring(1 + 2 * i, 3 + 2 * i);
-		var num1 = parseInt(sub1, 16);
-		var num2 = parseInt(sub2, 16);
+	let color = "#";
+	for (let i = 0; i < 3; i++) {
+		const sub1 = color1.substring(1 + 2 * i, 3 + 2 * i);
+		const sub2 = color2.substring(1 + 2 * i, 3 + 2 * i);
+		const num1 = parseInt(sub1, 16);
+		const num2 = parseInt(sub2, 16);
 
 		// blended number & sub
-		var num = Math.floor(num1 * (1 - blend) + num2 * blend);
-		var sub = num.toString(16).toUpperCase();
-		var paddedSub = ('0' + sub).slice(-2); // in case it's only one digit long
+		const num = Math.floor(num1 * (1 - blend) + num2 * blend);
+		const sub = num.toString(16).toUpperCase();
+		const paddedSub = ('0' + sub).slice(-2); // in case it's only one digit long
 
 		color += paddedSub;
 	}
@@ -58,12 +58,12 @@ function _blendColors(color1, color2, blend) {
 /**************************************************************************/
 /**************************************************************************/
 function _createCanvas(dom) {
-	var canvas = document.createElement("canvas");
+	const canvas = document.createElement("canvas");
 
 	// dimensions
-	var __onResize = function () {
-		var width = dom.clientWidth;
-		var height = dom.clientHeight;
+	const __onResize = function () {
+		const width = dom.clientWidth;
+		const height = dom.clientHeight;
 
 		canvas.width = width * 2; // retina
 		canvas.style.width = width + "px";
@@ -83,10 +83,10 @@ function _createCanvas(dom) {
 /**************************************************************************/
 /**************************************************************************/
 function _configureProperties(object, configuration, properties) {
-	for (var propertyName in properties) {
+	for (const propertyName in properties) {
 		// default values
 		if (configuration[propertyName] === undefined) {
-			var value = properties[propertyName];
+			let value = properties[propertyName];
 			if (typeof value == "function") value = value();
 			configuration[propertyName] = value;
 		}
@@ -97,7 +97,7 @@ function _configureProperties(object, configuration, properties) {
 /**************************************************************************/
 /**************************************************************************/
 function _createButton(label, onclick) {
-	var button = document.createElement("div");
+	const button = document.createElement("div");
 
 	button.innerHTML = label;
 	button.onclick = onclick;
@@ -108,7 +108,7 @@ function _createButton(label, onclick) {
 /**************************************************************************/
 /**************************************************************************/
 function _createTextInput(className, textarea, oninput) {
-	var input = textarea ? document.createElement("textarea") : document.createElement("input");
+	const input = textarea ? document.createElement("textarea") : document.createElement("input");
 
 	input.oninput = oninput;
 	input.setAttribute("class", className);
@@ -121,7 +121,7 @@ function _createTextInput(className, textarea, oninput) {
 /**************************************************************************/
 /**************************************************************************/
 function _createLabel(message) {
-	var label = document.createElement("div");
+	const label = document.createElement("div");
 
 	label.innerHTML = message;
 	label.setAttribute("class", "component-label");
@@ -131,7 +131,7 @@ function _createLabel(message) {
 /**************************************************************************/
 /**************************************************************************/
 function _createNumberInput(onUpdate) {
-	var input = {};
+	const input = {};
 
 	input.dom = document.createElement("input");
 	input.dom.style.border = "none";
@@ -145,7 +145,7 @@ function _createNumberInput(onUpdate) {
 
 	// on update
 	input.dom.onchange = function () {
-		var value = parseInt(input.getValue());
+		let value = parseInt(input.getValue());
 		if (isNaN(value)) value = 0;
 		input.setValue(value);
 		onUpdate(value);
@@ -171,18 +171,16 @@ function _createNumberInput(onUpdate) {
 /**************************************************************************/
 /**************************************************************************/
 function _format(template) {
-    var args = [].slice.call(arguments, 1),
-        i = 0;
-
-    return template.replace(/%s/g, () => args[i++]);
+	let args = [].slice.call(arguments, 1), i = 0;
+	return template.replace(/%s/g, () => args[i++]);
 }
 /**************************************************************************/
 /**************************************************************************/
 function _getBounds(points) {
 	// Bounds
-	var left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
-	for (var i = 0; i < points.length; i++) {
-		var point = points[i];
+	let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+	for (let i = 0; i < points.length; i++) {
+		const point = points[i];
 		if (point[0] < left) left = point[0];
 		if (right < point[0]) right = point[0];
 		if (point[1] < top) top = point[1];
@@ -190,41 +188,40 @@ function _getBounds(points) {
 	}
 
 	// Dimensions
-	var width = (right - left);
-	var height = (bottom - top);
+	const width = (right - left);
+	const height = (bottom - top);
 
 	return { left: left, right: right, top: top, bottom: bottom, width: width, height: height };
 }
 /**************************************************************************/
 /**************************************************************************/
 function _getParameterByName(name) {
-	var url = window.location.href;
+	const url = window.location.href;
 	name = name.replace(/[\[\]]/g, "\\$&");
-	var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
-		results = regex.exec(url);
+	const regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"), results = regex.exec(url);
 	if (!results) return null;
 	if (!results[2]) return '';
 	return decodeURIComponent(results[2].replace(/\+/g, " "));
-};
+}
 /**************************************************************************/
 /**************************************************************************/
 function _isPointInBox(x, y, box) {
 	if (x < box.x) return false;
 	if (x > box.x + box.width) return false;
 	if (y < box.y) return false;
-	if (y > box.y + box.height) return false;
-	return true;
+	return y <= box.y + box.height;
+
 }
 /**************************************************************************/
 /**************************************************************************/
 function _isPointInCircle(x, y, cx, cy, radius) {
 	// point distance
-	var dx = cx - x;
-	var dy = cy - y;
-	var distanceSquared = dx * dx + dy * dy;
+	const dx = cx - x;
+	const dy = cy - y;
+	const distanceSquared = dx * dx + dy * dy;
 
 	// radius
-	var radiusSquared = radius * radius;
+	const radiusSquared = radius * radius;
 
 	return distanceSquared <= radiusSquared;
 }
@@ -232,10 +229,10 @@ function _isPointInCircle(x, y, cx, cy, radius) {
 /**************************************************************************/
 function _rotatePoints(points, angle) {
 	points = JSON.parse(JSON.stringify(points));
-	for (var i = 0; i < points.length; i++) {
-		var p = points[i];
-		var x = p[0];
-		var y = p[1];
+	for (let i = 0; i < points.length; i++) {
+		const p = points[i];
+		const x = p[0];
+		const y = p[1];
 		p[0] = x * Math.cos(angle) - y * Math.sin(angle);
 		p[1] = y * Math.cos(angle) + x * Math.sin(angle);
 	}
@@ -245,8 +242,8 @@ function _rotatePoints(points, angle) {
 /**************************************************************************/
 function _translatePoints(points, dx, dy) {
 	points = JSON.parse(JSON.stringify(points));
-	for (var i = 0; i < points.length; i++) {
-		var p = points[i];
+	for (let i = 0; i < points.length; i++) {
+		const p = points[i];
 		p[0] += dx;
 		p[1] += dy;
 	}
@@ -256,18 +253,18 @@ function _translatePoints(points, dx, dy) {
 /**************************************************************************/
 function _throwErrorMessage(message) {
 	throw Error(message);
-};
+}
 /**************************************************************************/
 /**************************************************************************/
 function _validateAssigned(object, message) {
 	_validateTrue(!!object, message);
-};
+}
 /**************************************************************************/
 /**************************************************************************/
 function _validateTrue(object, message) {
 	if (object !== true) {
 		_throwErrorMessage(message);
 	}
-};
+}
 /**************************************************************************/
 /**************************************************************************/
