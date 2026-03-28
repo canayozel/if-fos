@@ -294,14 +294,14 @@ class Model {
         for (var i = 0; i < this.#stocks.length; i++) {
             var stock = this.#stocks[i];
 
-            // 0: id, 1: x, 2: y, 3: initialValue, 4: label, 5: hue
+            // 0: id, 1: x, 2: y, 3: initialValue, 4: label, 5: color
             stocks.push([
                 stock.id,
                 Math.round(stock.x),
                 Math.round(stock.y),
                 stock.initialValue,
                 encodeURIComponent(encodeURIComponent(stock.label)),
-                stock.hue,
+                stock.color,
                 stock instanceof RectangleStock ? 1 : 0
             ]);
         }
@@ -499,7 +499,7 @@ class Model {
             x: stock.x,
             y: stock.y,
             label: stock.label,
-            hue: stock.hue,
+            color: stock.color,
             initialValue: stock.initialValue,
             shape: shape
         };

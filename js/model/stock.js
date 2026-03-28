@@ -1,6 +1,6 @@
 class Stock extends Item {
     static DEFAULT_SIGNAL_DELTA_MULTIPLIER = 0.33;
-    static DEFAULT_HUE = 0;
+    static DEFAULT_COLOR = "#EA3E3E";
     static #ID_COUNTER = 0;
 
     static get #DEFAULT_LABEL() { return "?"; }
@@ -22,7 +22,7 @@ class Stock extends Item {
     #id; #x; #y;
     #radius = Stock.#DEFAULT_RADIUS;
     #label = Stock.#DEFAULT_LABEL;
-    #hue = Stock.DEFAULT_HUE;
+    #color = Stock.DEFAULT_COLOR;
 
     #controls = { visible: false, alpha: 0, direction: 0, selected: false, pressed: false }
     #offset = { main: 0, goTo: 0, vel: 0, acc: 0, damp: 0, hookes: 0 }
@@ -38,16 +38,15 @@ class Stock extends Item {
     get y() { return this.#y; }
     get radius() { return this.#radius; }
     get label() { return this.#label; }
-    get hue() { return this.#hue; }
+    get color() { return this.#color; }
     get initialValue() { return this.#initialValue; }
-    get color() { return Stock.#COLORS[this.#hue]; }
     get shape() { return this instanceof RectangleStock ? 1 : 0; }
 
     set x(x) { this.#x = x; }
     set y(y) { this.#y = y; }
     set radius(radius) { this.#radius = radius; }
     set label(label) { this.#label = label; }
-    set hue(hue) { this.#hue = hue; }
+    set color(color) { this.#color = color; }
     set initialValue(initialValue) { this.#initialValue = initialValue; }
     set shape(value) { publish("model/stock/shape", [this, value]); }
 
@@ -62,8 +61,19 @@ class Stock extends Item {
 
         if (configuration.radius !== undefined) this.#radius = configuration.radius;
         if (configuration.label !== undefined) this.#label = configuration.label;
-        if (configuration.hue !== undefined) this.#hue = configuration.hue;
         if (configuration.initialValue !== undefined) this.#initialValue = configuration.initialValue;
+
+        // color / hue (compatibility)
+        if (configuration.color !== undefined) {
+            this.#color = configuration.color;
+        } else if (configuration.hue !== undefined) {
+            // map index if numeric, else use string
+            if (typeof configuration.hue === "number" && Stock.#COLORS[configuration.hue]) {
+                this.#color = Stock.#COLORS[configuration.hue];
+            } else {
+                this.#color = configuration.hue;
+            }
+        }
 
         this.#reset();
 
@@ -91,7 +101,7 @@ class Stock extends Item {
         var x = this.x * 2;
         var y = this.y * 2;
         var r = this.radius * 2;
-        var color = Stock.#COLORS[this.hue];
+        var color = this.color;
 
         context.save();
         context.translate(x, y + this.#offset.main);

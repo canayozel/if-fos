@@ -42,11 +42,11 @@ class Sidebar extends UI {
         page.addComponent(new ComponentInput(page, "label", {
             label: "<br><br>Name:"
         }));
-        page.addComponent(new ComponentChoice(page, "hue", {
+        page.addComponent(new ComponentColor(page, "color", {
             label: "Color:",
-            options: [0, 1, 2, 3, 4, 5],
-            iconColors: ["#EA3E3E", "#EA9D51", "#FEEE43", "#BFEE3F", "#7FD4FF", "#A97FFF"],
-            oninput: function (value) { Stock.DEFAULT_HUE = value; }
+            oninput: (value) => {
+                Stock.DEFAULT_COLOR = value;
+            }
         }));
         page.addComponent(new ComponentChoice(page, "initialValue", {
             label: "Start Amount:",
@@ -68,10 +68,6 @@ class Sidebar extends UI {
 
         page.onEdit = function () {
             var stock = page.target;
-            var color = stock.color;
-            page.getComponent("initialValue").setBGColor(window.HIGHLIGHT_COLOR);
-            page.getComponent("shape").setBGColor(window.HIGHLIGHT_COLOR);
-
             var name = stock.label;
             if (name == "" || name == "?") page.getComponent("label").select();
         };
@@ -103,7 +99,6 @@ class Sidebar extends UI {
         }));
 
         page.onEdit = function () {
-            page.getComponent("strength").setBGColor(window.HIGHLIGHT_COLOR);
         };
 
         return page;
@@ -208,7 +203,6 @@ class SidebarPage extends UIPage {
 
 
 class ComponentChoice extends Component {
-    #currentColor;
     #container;
 
     constructor(page, propertyName, configuration) {
@@ -258,20 +252,113 @@ class ComponentChoice extends Component {
         for (var i = 0; i < this.choices.length; i++) {
             if (this.configuration.options[i] === value) {
                 this.choices[i].setAttribute("selected", "yes");
-                if (this.#currentColor) {
-                    this.choices[i].style.backgroundColor = this.#currentColor;
-                }
             } else {
                 this.choices[i].removeAttribute("selected");
-                this.choices[i].style.backgroundColor = "";
             }
         }
     }
-
-    setBGColor(color) {
-        this.#currentColor = color;
-        this.show();
-    };
 }
 
 
+
+class ComponentColor extends Component {
+    #input;
+    #text;
+    #copy;
+
+    constructor(page, propertyName, configuration) {
+        super(page, propertyName, configuration);
+
+        var container = document.createElement("div");
+        container.setAttribute("class", "component-color-container");
+
+        // picker
+        this.#input = document.createElement("input");
+        this.#input.type = "color";
+        this.#input.setAttribute("class", "component-color-picker");
+
+        // hex text input
+        this.#text = document.createElement("input");
+        this.#text.setAttribute("type", "text");
+        this.#text.setAttribute("class", "component-color-hex");
+        this.#text.style.userSelect = "text";
+        this.#text.style.webkitUserSelect = "text";
+
+        // generic update function
+        const performUpdate = (value) => {
+            this.setTargetPropertyValue(value);
+            if (this.configuration.oninput) {
+                this.configuration.oninput(value);
+            }
+        };
+
+        this.#text.onkeydown = (event) => {
+            event.stopPropagation();
+        };
+
+        this.#text.oninput = () => {
+            let value = this.#text.value.trim();
+            if (value.charAt(0) !== '#') value = '#' + value;
+
+            if (/^#[0-9A-F]{6}$/i.test(value)) {
+                this.#input.value = value;
+                performUpdate(value.toUpperCase());
+            } else if (/^#[0-9A-F]{3}$/i.test(value)) {
+                const r = value[1], g = value[2], b = value[3];
+                this.#input.value = `#${r}${r}${g}${g}${b}${b}`;
+                performUpdate(value.toUpperCase());
+            }
+        };
+
+        this.#text.onblur = () => {
+            let value = this.#text.value.trim().toUpperCase();
+            if (value.charAt(0) !== '#') value = '#' + value;
+            if (/^#[0-9A-F]{3}$/i.test(value)) {
+                const r = value[1], g = value[2], b = value[3];
+                value = `#${r}${r}${g}${g}${b}${b}`;
+            }
+            if (/^#[0-9A-F]{6}$/i.test(value)) {
+                this.#text.value = value;
+            }
+        };
+
+        this.#input.oninput = () => {
+            let value = this.#input.value.toUpperCase();
+            this.#text.value = value;
+            performUpdate(value);
+        };
+
+        // copy button
+        this.#copy = document.createElement("div");
+        this.#copy.setAttribute("class", "component-color-copy");
+        this.#copy.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        `;
+        this.#copy.setAttribute("data-balloon", "Copy Hex");
+        this.#copy.setAttribute("data-balloon-pos", "top");
+        this.#copy.onclick = () => {
+            navigator.clipboard.writeText(this.#input.value.toUpperCase());
+            this.#copy.setAttribute("data-balloon", "Copied!");
+            setTimeout(() => {
+                this.#copy.setAttribute("data-balloon", "Copy Hex");
+            }, 1000);
+        };
+
+        container.appendChild(this.#input);
+        container.appendChild(this.#text);
+        container.appendChild(this.#copy);
+
+        var label = _createLabel(this.configuration.label);
+        this.dom.appendChild(label);
+        this.dom.appendChild(container);
+    }
+
+    show() {
+        var value = this.getTargetPropertyValue();
+        this.#input.value = value;
+        this.#text.value = value.toUpperCase();
+    }
+}

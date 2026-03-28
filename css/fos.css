@@ -244,6 +244,71 @@ textarea.component-output {
 	border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+/********** color component **********/
+.component-color-container {
+	display: flex;
+	align-items: center;
+	background: #ffffff;
+	padding: 5px;
+	border-radius: 2px;
+	border: 1px solid #cccccc;
+	height: 32px;
+}
+
+.component-color-picker {
+	border: none;
+	width: 30px;
+	height: 30px;
+	cursor: pointer;
+	background: none;
+	padding: 0;
+	margin-right: 10px;
+}
+
+.component-color-picker::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.component-color-picker::-webkit-color-swatch {
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	border-radius: 2px;
+}
+
+.component-color-hex {
+	font-family: monospace;
+	font-size: 16px;
+	flex-grow: 1;
+	color: #333333;
+	border: none;
+	background: transparent;
+	padding: 0;
+	width: 100%;
+	outline: none;
+	user-select: text;
+	-webkit-user-select: text;
+}
+
+.component-color-copy {
+	cursor: pointer;
+	color: #888888;
+	transition: color 0.2s;
+	margin-left: 5px;
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.component-color-copy svg {
+	width: 16px;
+	height: 16px;
+}
+
+.component-color-copy:hover {
+	color: #333333;
+}
+
 /********** playbar **********/
 
 #playbar {
