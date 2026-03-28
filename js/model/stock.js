@@ -49,7 +49,13 @@ class Stock extends Item {
     set radius(radius) { this.#radius = radius; }
     set label(label) { this.#label = label; }
     set color(color) { this.#color = color; }
-    set initialValue(initialValue) { this.#initialValue = parseFloat(initialValue) || 0; }
+    set initialValue(initialValue) {
+        if (initialValue === "" || initialValue === null || initialValue === undefined) {
+            this.#initialValue = null;
+        } else {
+            this.#initialValue = parseFloat(initialValue);
+        }
+    }
     set unit(unit) { this.#unit = unit; }
     set shape(value) { publish("model/stock/shape", [this, value]); }
 
@@ -64,7 +70,13 @@ class Stock extends Item {
 
         if (configuration.radius !== undefined) this.#radius = configuration.radius;
         if (configuration.label !== undefined) this.#label = configuration.label;
-        if (configuration.initialValue !== undefined) this.#initialValue = parseFloat(configuration.initialValue);
+        if (configuration.initialValue !== undefined) {
+            if (configuration.initialValue === "" || configuration.initialValue === null) {
+                this.#initialValue = null;
+            } else {
+                this.#initialValue = parseFloat(configuration.initialValue);
+            }
+        }
         if (configuration.unit !== undefined) this.#unit = configuration.unit;
 
         // color / hue (compatibility)
@@ -169,32 +181,142 @@ class Stock extends Item {
     }
 
     drawLabel(context, r) {
-        // Name (Top)
-        var nameFontSize = 35;
-        context.font = "bold " + nameFontSize + "px sans-serif";
-        context.textAlign = "center";
-        context.textBaseline = "middle";
-        context.fillStyle = "#000";
-        var nameWidth = context.measureText(this.label).width;
-        while (nameWidth > r * 2 - 20) {
-            nameFontSize -= 1;
-            context.font = "bold " + nameFontSize + "px sans-serif";
-            nameWidth = context.measureText(this.label).width;
-        }
-        context.fillText(this.label, 0, -12);
+        var isDark = this.#isDarkColor(this.color);
+        var textColor = isDark ? "#FFF" : "#000";
+        var subtextColor = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)";
+        var pillColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)";
 
-        // Value + Unit (Bottom)
-        var valueFontSize = 25;
-        context.font = "normal " + valueFontSize + "px sans-serif";
-        var displayValue = Math.round(this.#currentValue * 100) / 100;
-        var valueText = displayValue + " " + (this.unit || "");
-        var valueWidth = context.measureText(valueText).width;
-        while (valueWidth > r * 2 - 20) {
-            valueFontSize -= 1;
-            context.font = "normal " + valueFontSize + "px sans-serif";
-            valueWidth = context.measureText(valueText).width;
+        var hasValue = (this.#initialValue !== null && !isNaN(this.#initialValue));
+        var radius = r / 2;
+        var isCircle = !(this instanceof RectangleStock);
+
+        // Helper for specialized geometry-aware width
+        const getWidthAtY = (y) => {
+            if (!isCircle) return r * 0.95;
+            var absY = Math.abs(y);
+            if (absY >= radius) return 0;
+            return 2 * Math.sqrt(radius * radius - (absY * absY)) * 0.88;
+        };
+
+        // 1. DATA CENTER (Metric Card Style - Horizontal Density for Human Sight)
+        var valueFontSize = hasValue ? (r * 0.26) : 0; // Value font size
+        var valueY = hasValue ? radius * 0.55 : 0; // Pushed to the absolute lower rim to maximize gap
+
+        if (hasValue) {
+            context.font = "bold " + valueFontSize + "px sans-serif";
+            var displayValue = Math.round(this.#currentValue * 100) / 100;
+            var valueText = displayValue.toString();
+            var unitFontSize = Math.max(10, valueFontSize * 0.65);
+            var unitText = this.unit ? (" " + this.unit) : "";
+
+            // Calculate widths
+            var valW = context.measureText(valueText).width;
+            context.font = "bold " + unitFontSize + "px sans-serif";
+            var unitW = this.unit ? context.measureText(unitText).width : 0;
+            var combinedW = valW + unitW;
+
+            var maxWidth = getWidthAtY(valueY);
+
+            // Auto scale combined horizontal text
+            while (combinedW > maxWidth && valueFontSize > (r * 0.1)) {
+                valueFontSize -= 1;
+                unitFontSize = Math.max(10, valueFontSize * 0.65);
+
+                context.font = "bold " + valueFontSize + "px sans-serif";
+                valW = context.measureText(valueText).width;
+                context.font = "bold " + unitFontSize + "px sans-serif";
+                unitW = this.unit ? context.measureText(unitText).width : 0;
+                combinedW = valW + unitW;
+            }
+
+            // Draw THE PILL (Visual Island - Horizontal)
+            var pillPaddingH = r * 0.12;
+            var pillPaddingV = valueFontSize * 0.25;
+            var pillW = combinedW + pillPaddingH * 2;
+            var pillH = valueFontSize + pillPaddingV * 2;
+
+            var pillTop = valueY - (valueFontSize / 2) - pillPaddingV;
+            var pillX = -pillW / 2;
+            var pillY = pillTop;
+            var pillR = isCircle ? Math.min(pillH / 2, r * 0.15) : (r * 0.08);
+
+            context.beginPath();
+            context.roundRect(pillX, pillY, pillW, pillH, pillR);
+            context.fillStyle = pillColor;
+            context.fill();
+
+            // VALUE + UNIT (Side by Side layout)
+            var startX = -combinedW / 2;
+
+            context.font = "bold " + valueFontSize + "px sans-serif";
+            context.fillStyle = textColor;
+            context.textAlign = "left";      // Left align so they fit next to each other
+            context.textBaseline = "middle";
+            context.fillText(valueText, startX, valueY);
+
+            if (this.unit) {
+                context.font = "bold " + unitFontSize + "px sans-serif";
+                context.fillStyle = subtextColor;
+                context.fillText(unitText, startX + valW, valueY + (valueFontSize - unitFontSize) * 0.1);
+            }
         }
-        context.fillText(valueText, 0, 18);
+
+        // pillY is used as the boundary for the name above it
+        var safePillY = hasValue ? pillY : 0;
+        var requiredGap = hasValue ? (r * 0.12) : 0; // Much larger forced empty buffer
+
+        // 2. CONTEXT HEADER (The Name - Equatorial Prioritization)
+        var nameFontSize = hasValue ? (r * 0.42) : (r * 0.48); // Name font noticeably increased
+        context.font = "bold " + nameFontSize + "px sans-serif";
+
+        var lines = [];
+        var lineSpacing = 0;
+        var totalHeight = 0;
+
+        while (nameFontSize > (r * 0.08) || nameFontSize > 10) {
+            context.font = "bold " + nameFontSize + "px sans-serif";
+
+            // Name center Y estimation
+            var expectedCenterY = hasValue ? ((safePillY - requiredGap - radius * 0.85) / 2) : 0;
+            var maxWidth = getWidthAtY(expectedCenterY);
+
+            lines = this.#wrapText(context, this.label, maxWidth);
+            lineSpacing = nameFontSize * 1.1;
+            totalHeight = lines.length * lineSpacing;
+
+            // Check if it fits in the available vertical space
+            if (hasValue) {
+                var spaceAvailable = (safePillY - requiredGap) - (-radius * 0.85);
+                if (totalHeight <= spaceAvailable) {
+                    break;
+                }
+            } else {
+                if (totalHeight <= radius * 1.7) {
+                    break;
+                }
+            }
+            nameFontSize -= 1;
+        }
+
+        if (lines && lines.length > 0) {
+            var startY;
+            if (hasValue) {
+                // Center exactly between the top curve and the pill, incorporating the MASSIVE gap
+                var spaceTop = -radius * 0.85;
+                var spaceBottom = safePillY - requiredGap;
+                var spaceCenter = (spaceTop + spaceBottom) / 2;
+                startY = spaceCenter - (totalHeight / 2) + (lineSpacing / 2);
+            } else {
+                startY = 0 - (totalHeight / 2) + (lineSpacing / 2);
+            }
+
+            context.fillStyle = subtextColor; // Consistently use premium styling for the Name
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            for (var i = 0; i < lines.length; i++) {
+                context.fillText(lines[i], 0, startY + i * lineSpacing);
+            }
+        }
     }
 
     drawControls(context, configuration) {
@@ -295,9 +417,46 @@ class Stock extends Item {
         this.#offset.vel *= this.#offset.damp;
         this.#offset.acc = (this.#offset.goTo - this.#offset.main) * this.#offset.hookes;
     };
+
     /**********************************************************************/
     // PRIVATE METHODS
     /**********************************************************************/
+
+    #wrapText(context, text, maxWidth) {
+        var words = text.split(/\s+/);
+        var lines = [];
+        var currentLine = words[0];
+
+        for (var i = 1; i < words.length; i++) {
+            var word = words[i];
+            var width = context.measureText(currentLine + " " + word).width;
+            if (width < maxWidth) {
+                currentLine += " " + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+        return lines;
+    }
+
+    #isDarkColor(color) {
+        if (!color || color.charAt(0) !== '#') return false;
+        var r, g, b;
+        if (color.length === 4) { // #RGB
+            r = parseInt(color[1] + color[1], 16);
+            g = parseInt(color[2] + color[2], 16);
+            b = parseInt(color[3] + color[3], 16);
+        } else { // #RRGGBB
+            r = parseInt(color.substring(1, 3), 16);
+            g = parseInt(color.substring(3, 5), 16);
+            b = parseInt(color.substring(5, 7), 16);
+        }
+        var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance < 0.5;
+    }
+
     #reset() {
         this.#currentValue = this.#initialValue;
     }
