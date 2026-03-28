@@ -45,7 +45,7 @@ class Sidebar extends UI {
         page.addComponent(new ComponentChoice(page, "hue", {
             label: "Color:",
             options: [0, 1, 2, 3, 4, 5],
-            iconColors: ["#f1c40f", "#e67e22", "#e74c3c", "#9b59b6", "#3498db", "#2ecc71"],
+            iconColors: ["#EA3E3E", "#EA9D51", "#FEEE43", "#BFEE3F", "#7FD4FF", "#A97FFF"],
             oninput: function (value) { Stock.DEFAULT_HUE = value; }
         }));
         page.addComponent(new ComponentChoice(page, "initialValue", {
