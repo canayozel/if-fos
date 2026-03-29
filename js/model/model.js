@@ -308,7 +308,7 @@ class Model {
                 encodeURIComponent(encodeURIComponent(stock.label)),
                 stock.color,
                 stock instanceof RectangleStock ? 1 : 0,
-                encodeURIComponent(encodeURIComponent(stock.unit))
+                stock.unit ? encodeURIComponent(encodeURIComponent(stock.unit)) : ""
             ]);
         }
 
@@ -336,7 +336,7 @@ class Model {
             texts.push([
                 Math.round(text.x),
                 Math.round(text.y),
-                encodeURIComponent(encodeURIComponent(text.value))
+                text.value ? encodeURIComponent(encodeURIComponent(text.value)) : ""
             ]);
         }
 
@@ -347,6 +347,9 @@ class Model {
         // only uri encode quotes, also replace the last character
         var dataString = JSON.stringify(data);
         dataString = dataString.replace(/"/gi, "%22");
+        dataString = dataString.replace(/#/gi, "%23");
+        dataString = dataString.replace(/&/gi, "%26");
+        dataString = dataString.replace(/\+/gi, "%2B");
         dataString = dataString.substring(0, dataString.length - 1) + "%5D";
         return dataString;
     };
