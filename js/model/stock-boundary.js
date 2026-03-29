@@ -1,10 +1,6 @@
 class BoundaryStock extends Stock {
-    static #stocks = {};
-    static getStock(id) { return BoundaryStock.#stocks[id]; }
-
     constructor(configuration) {
         super(configuration);
-        BoundaryStock.#stocks[this.id] = this;
     }
 
     get showValue() { return false; }
@@ -39,16 +35,11 @@ class BoundaryStock extends Stock {
         // No value level drawn for BoundaryStock as it is "infinite/inapplicable"
     }
 
-    drawValueShape(context, color, innerSize) {
-        // No value shape for boundary stock
-    }
-
     isPointInStock(context, x, y, buffer) {
         return _isPointInCircle(x, y, this.x, this.y, this.radius + (buffer || 0));
     };
 
     kill(silent) {
         super.kill(silent);
-        delete BoundaryStock.#stocks[this.id];
-    };
+    }
 }

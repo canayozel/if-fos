@@ -69,6 +69,8 @@ class Sidebar extends UI {
 
         page.onEdit = function () {
             var stock = page.target;
+            if (!stock) return;
+
             var name = stock.label;
             if (name == "" || name == "?") page.getComponent("label").select();
         };
@@ -361,5 +363,36 @@ class ComponentColor extends Component {
         var value = this.getTargetPropertyValue();
         this.#input.value = value;
         this.#text.value = value.toUpperCase();
+    }
+}
+
+class ComponentRange extends Component {
+    #input;
+
+    constructor(page, propertyName, configuration) {
+        super(page, propertyName, configuration);
+
+        this.#input = document.createElement("input");
+        this.#input.setAttribute("type", "range");
+        this.#input.setAttribute("class", "component-range");
+        this.#input.setAttribute("min", configuration.min || 30);
+        this.#input.setAttribute("max", configuration.max || 150);
+        this.#input.setAttribute("step", configuration.step || 1);
+
+        this.#input.oninput = () => {
+            var value = parseInt(this.#input.value);
+            this.setTargetPropertyValue(value);
+            if (this.configuration.oninput) {
+                this.configuration.oninput(value);
+            }
+        };
+
+        var label = _createLabel(this.configuration.label || "");
+        this.dom.appendChild(label);
+        this.dom.appendChild(this.#input);
+    }
+
+    show() {
+        this.#input.value = this.getTargetPropertyValue();
     }
 }

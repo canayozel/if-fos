@@ -296,9 +296,9 @@ class Flow extends Item {
 
         // arrow buffer
         this.#arrow.buffer = 15;
-        this.#arrow.distance = (this.target.radius + this.#arrow.buffer) * 2;
+        this.#arrow.distance = (this.target.getBoundaryOffset(this.#parameters.a + Math.PI) + this.#arrow.buffer) * 2;
         this.#arrow.angle = this.#arrow.distance / this.#parameters.r; // (distance/circumference)*TAU, close enough.
-        this.#arrow.beginDistance = (this.source.radius + this.#arrow.buffer) * 2;
+        this.#arrow.beginDistance = (this.source.getBoundaryOffset(this.#parameters.a) + this.#arrow.buffer) * 2;
         this.#angle.begin = this.#arrow.beginDistance / this.#parameters.r;
 
         // arc it

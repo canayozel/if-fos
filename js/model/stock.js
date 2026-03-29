@@ -6,21 +6,12 @@ class Stock extends Item {
     static get #DEFAULT_LABEL() { return "?"; }
     static get #DEFAULT_RADIUS() { return 60; };
     static get #DEFAULT_VALUE() { return 0.5; }
-    static get #COLORS() {
-        return {
-            0: "#EA3E3E", // red
-            1: "#EA9D51", // orange
-            2: "#FEEE43", // yellow
-            3: "#BFEE3F", // green
-            4: "#7FD4FF", // blue
-            5: "#A97FFF" // purple
-        };
-    }
     static #stocks = {};
     static getStock(id) { return Stock.#stocks[id]; }
 
     #id; #x; #y;
-    #radius = Stock.#DEFAULT_RADIUS;
+    #width = Stock.#DEFAULT_RADIUS * 2;
+    #height = Stock.#DEFAULT_RADIUS * 2;
     #label = Stock.#DEFAULT_LABEL;
     #color = Stock.DEFAULT_COLOR;
 
@@ -37,7 +28,9 @@ class Stock extends Item {
     get id() { return this.#id; }
     get x() { return this.#x; }
     get y() { return this.#y; }
-    get radius() { return this.#radius; }
+    get width() { return this.#width; }
+    get height() { return this.#height; }
+    get radius() { return this.width / 2; }
     get label() { return this.#label; }
     get color() { return this.#color; }
     get initialValue() { return this.#initialValue; }
@@ -52,7 +45,12 @@ class Stock extends Item {
 
     set x(x) { this.#x = x; }
     set y(y) { this.#y = y; }
-    set radius(radius) { this.#radius = radius; }
+    set width(v) { this.#width = v; }
+    set height(v) { this.#height = v; }
+    set radius(radius) { 
+        this.#width = radius * 2; 
+        this.#height = radius * 2; 
+    }
     set label(label) { this.#label = label; }
     set color(color) { this.#color = color; }
     set initialValue(initialValue) {
@@ -73,9 +71,26 @@ class Stock extends Item {
 
         this.x = configuration.x;
         this.y = configuration.y;
+        
+        if (configuration.width !== undefined) this.#width = configuration.width;
+        if (configuration.height !== undefined) {
+            this.#height = configuration.height;
+        } else if (configuration.width !== undefined) {
+            this.#height = (this instanceof RectangleStock) ? this.#width * 0.75 : this.#width;
+        }
+        
+        // Force circularity if not rectangle
+        if (this.#width !== undefined && !(this instanceof RectangleStock)) {
+            this.#height = this.#width;
+        }
 
-        if (configuration.radius !== undefined) this.#radius = configuration.radius;
+        if (configuration.radius !== undefined) {
+            this.#width = configuration.radius * 2;
+            this.#height = (this instanceof RectangleStock) ? this.#width * 0.75 : this.#width;
+        }
         if (configuration.label !== undefined) this.#label = configuration.label;
+
+        // initialValue / unit
         if (configuration.initialValue !== undefined) {
             if (configuration.initialValue === "" || configuration.initialValue === null) {
                 this.#initialValue = null;
@@ -85,17 +100,10 @@ class Stock extends Item {
         }
         if (configuration.unit !== undefined) this.#unit = configuration.unit;
 
-        // color / hue (compatibility)
-        if (configuration.color !== undefined) {
-            this.#color = configuration.color;
-        } else if (configuration.hue !== undefined) {
-            // map index if numeric, else use string
-            if (typeof configuration.hue === "number" && Stock.#COLORS[configuration.hue]) {
-                this.#color = Stock.#COLORS[configuration.hue];
-            } else {
-                this.#color = configuration.hue;
-            }
-        }
+        // color
+        this.#color = configuration.color || configuration.hue || Stock.DEFAULT_COLOR;
+        // ensure it's a string if it was a numeric hue index from very old versions
+        if (typeof this.#color === "number") this.#color = Stock.DEFAULT_COLOR;
 
         this.#reset();
 
@@ -112,10 +120,10 @@ class Stock extends Item {
 
     getBoundingBox(context) {
         return {
-            left: this.x - this.radius,
-            top: this.y - this.radius,
-            right: this.x + this.radius,
-            bottom: this.y + this.radius
+            left: this.x - this.width / 2,
+            top: this.y - this.height / 2,
+            right: this.x + this.width / 2,
+            bottom: this.y + this.height / 2
         };
     };
 
@@ -154,38 +162,6 @@ class Stock extends Item {
         _throwErrorMessage("drawShape not implemented in Stock base class");
     }
 
-    drawValue(context, color, r) {
-        // radius is inverse tangent (in radians) (atan) of value
-        var _r = Math.atan(this.#currentValue * 5);
-        _r = _r / (Math.PI / 2);
-        _r = (_r + 1) / 2;
-
-        // INFINITE RANGE FOR RADIUS
-        // linear from 0 to 1, asymptotic otherwise.
-        var _value;
-        if (this.#currentValue >= 0 && this.#currentValue <= 1) {
-            // (0,1) -> (0.1, 0.9)
-            _value = 0.1 + 0.8 * this.#currentValue;
-        } else {
-            if (this.#currentValue < 0) {
-                // asymptotically approach 0, starting at 0.1
-                _value = (1 / (Math.abs(this.#currentValue) + 1)) * 0.1;
-            }
-            if (this.#currentValue > 1) {
-                // asymptotically approach 1, starting at 0.9
-                _value = 1 - (1 / this.#currentValue) * 0.1;
-            }
-        }
-        var _innerRadiusGoto = r * _value; // radius
-        this.#innerRadius = (this.#innerRadius || 0) * 0.8 + _innerRadiusGoto * 0.2;
-
-        this.drawValueShape(context, color, this.#innerRadius);
-    }
-
-    drawValueShape(context, color, innerSize) {
-        _throwErrorMessage("drawValueShape not implemented in Stock base class");
-    }
-
     drawLabel(context, r) {
         var isDark = this.isContentDark;
         var textColor = isDark ? "#FFF" : "#000";
@@ -193,20 +169,25 @@ class Stock extends Item {
         var pillColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)";
 
         var hasValue = (this.#initialValue !== null && !isNaN(this.#initialValue) && this.showValue);
-        var radius = r / 2;
+        var halfWidth = r / 2;
+        var halfHeight = this.height / 2;
         var isCircle = !(this instanceof RectangleStock);
+
+        // Unified Scaling Engine: Base all font decisions on the actual visual room (min of width/height)
+        var effectiveRadius = isCircle ? halfWidth : Math.min(halfWidth, halfHeight);
+        var r_scale = effectiveRadius * 2;
 
         // Helper for specialized geometry-aware width
         const getWidthAtY = (y) => {
             if (!isCircle) return r * 0.95;
             var absY = Math.abs(y);
-            if (absY >= radius) return 0;
-            return 2 * Math.sqrt(radius * radius - (absY * absY)) * 0.88;
+            if (absY >= halfWidth) return 0;
+            return 2 * Math.sqrt(halfWidth * halfWidth - (absY * absY)) * 0.88;
         };
 
-        // 1. DATA CENTER (Metric Card Style - Horizontal Density for Human Sight)
-        var valueFontSize = hasValue ? (r * 0.26) : 0; // Value font size
-        var valueY = hasValue ? radius * 0.55 : 0; // Pushed to the absolute lower rim to maximize gap
+        // 1. DATA CENTER (Metric Card Style)
+        var valueFontSize = hasValue ? (r_scale * 0.28) : 0; 
+        var valueY = hasValue ? (halfHeight * 0.45) : 0; 
 
         if (hasValue) {
             context.font = "bold " + valueFontSize + "px sans-serif";
@@ -236,8 +217,8 @@ class Stock extends Item {
             }
 
             // Draw THE PILL (Visual Island - Horizontal)
-            var pillPaddingH = r * 0.12;
-            var pillPaddingV = valueFontSize * 0.25;
+            var pillPaddingH = r * 0.1;
+            var pillPaddingV = valueFontSize * 0.2;
             var pillW = combinedW + pillPaddingH * 2;
             var pillH = valueFontSize + pillPaddingV * 2;
 
@@ -268,11 +249,12 @@ class Stock extends Item {
         }
 
         // pillY is used as the boundary for the name above it
-        var safePillY = hasValue ? pillY : 0;
-        var requiredGap = hasValue ? (r * 0.12) : 0; // Much larger forced empty buffer
+        var safePillY = hasValue ? pillY : 0; 
+        var requiredGap = hasValue ? (halfHeight * 0.15) : 0; // Height-aware gap!
+        var topLimit = -halfHeight * 0.85;
 
-        // 2. CONTEXT HEADER (The Name - Equatorial Prioritization)
-        var nameFontSize = hasValue ? (r * 0.42) : (r * 0.48); // Name font noticeably increased
+        // 2. CONTEXT HEADER (Synchronized Growth Logic)
+        var nameFontSize = r_scale * 0.28; 
         context.font = "bold " + nameFontSize + "px sans-serif";
 
         var lines = [];
@@ -281,9 +263,10 @@ class Stock extends Item {
 
         while (nameFontSize > (r * 0.08) || nameFontSize > 10) {
             context.font = "bold " + nameFontSize + "px sans-serif";
-
-            // Name center Y estimation
-            var expectedCenterY = hasValue ? ((safePillY - requiredGap - radius * 0.85) / 2) : 0;
+            
+            // Expected center for multi-line layout
+            var spaceAvailable = hasValue ? (safePillY - requiredGap - topLimit) : (halfHeight * 1.7);
+            var expectedCenterY = hasValue ? (topLimit + spaceAvailable / 2) : 0;
             var maxWidth = getWidthAtY(expectedCenterY);
 
             lines = this.#wrapText(context, this.label, maxWidth);
@@ -292,12 +275,11 @@ class Stock extends Item {
 
             // Check if it fits in the available vertical space
             if (hasValue) {
-                var spaceAvailable = (safePillY - requiredGap) - (-radius * 0.85);
                 if (totalHeight <= spaceAvailable) {
                     break;
                 }
             } else {
-                if (totalHeight <= radius * 1.7) {
+                if (totalHeight <= halfHeight * 1.7) {
                     break;
                 }
             }
@@ -307,8 +289,8 @@ class Stock extends Item {
         if (lines && lines.length > 0) {
             var startY;
             if (hasValue) {
-                // Center exactly between the top curve and the pill, incorporating the MASSIVE gap
-                var spaceTop = -radius * 0.85;
+                // Original perfect centering
+                var spaceTop = topLimit;
                 var spaceBottom = safePillY - requiredGap;
                 var spaceCenter = (spaceTop + spaceBottom) / 2;
                 startY = spaceCenter - (totalHeight / 2) + (lineSpacing / 2);
@@ -355,7 +337,6 @@ class Stock extends Item {
 
     initialize(model, mouse) {
         this.#reset();
-        this.#innerRadius = 0;
 
         this.#listeners.modelreset = subscribe("model/reset", function () { this.#onModelReset(model) }.bind(this));
         this.#listeners.mousedown = subscribe("mousedown", function () { this.#onMouseDown(model, mouse) }.bind(this));
@@ -366,6 +347,19 @@ class Stock extends Item {
     isPointInStock(context, x, y, buffer) {
         _throwErrorMessage("isPointInStock not implemented in Stock base class");
     };
+
+    isPointInResizeZone(x, y) {
+        // Resize if clicking/hovering the highlight area (halo) 
+        // that is outside the core stock
+        var highlightRadius = this.radius + 40;
+        var inHighlight = _isPointInCircle(x, y, this.x, this.y, highlightRadius);
+        var inStock = this.isPointInStock(null, x, y, 0);
+        return inHighlight && !inStock;
+    };
+
+    getBoundaryOffset(angle) {
+        return this.radius; // circular default
+    }
 
     kill(silent) {
         unsubscribe("model/reset", this.#listeners.modelreset);
@@ -405,8 +399,10 @@ class Stock extends Item {
             this.#reset();
         }
 
-        // Cursor!
-        if (this.#controls.selected) mouse.showCursor("pointer");
+        // Cursor (Only for Signals in Play Mode)
+        if (configuration.isPlaying && this.#controls.selected) {
+            mouse.showCursor("pointer");
+        }
 
         // Visually & vertically bump the stock
         var gotoAlpha = (this.#controls.visible) ? 1 : 0;
@@ -505,9 +501,13 @@ class Stock extends Item {
     #onMouseMove(model, mouse) {
         if (!model.isPlaying()) return;
 
-        this.#controls.selected = this.isPointInStock(model.context, mouse.x, mouse.y);
+        // Selection: Included when mouse is over stock OR resizing halo
+        var inStock = this.isPointInStock(model.context, mouse.x, mouse.y);
+        var inHalo = this.isPointInResizeZone(mouse.x, mouse.y);
+
+        this.#controls.selected = (inStock || inHalo);
         this.#controls.visible = this.#controls.selected;
-        this.#controls.direction = this.#controls.selected ? (mouse.y < this.y) ? 1 : -1 : 0;
+        this.#controls.direction = inStock ? (mouse.y < this.y) ? 1 : -1 : 0;
     }
     #onMouseUp(model, mouse) {
         if (!model.isPlaying()) return;

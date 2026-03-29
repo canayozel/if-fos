@@ -8,6 +8,7 @@ class FOS {
 
     #wobble = FOS.#INITIAL_WOBBLE_CONTROLS;
     #elements = {};
+    #resizing = null;
 
     constructor(dom, configuration) {
         FOS.#registerGlobalParameters();
@@ -82,13 +83,23 @@ class FOS {
 
     run() {
         setInterval(function () {
-            this.mouse.update();
             if (this.#wobble >= 0) { // wobble
                 this.#wobble--;
             }
             if (!this.modal.open) {
                 this.model.update(this.#getAnimationConfiguration());
+                
+                // Central Compose-mode Cursor Management
+                if (this.model.isComposing() && this.toolbar.currentTool === Toolbar.TOOL_MOVE) {
+                    const target = this.sidebar.currentPage.target;
+                    
+                    // If actively resizing OR hovering an editable stock's halo
+                    if (this.#resizing || (target && target.type === Item.STOCK && target.isPointInResizeZone(this.mouse.x, this.mouse.y))) {
+                        this.mouse.showCursor("nwse-resize");
+                    }
+                }
             }
+            this.mouse.update(); // collect cursor requests from components and apply to DOM last
         }.bind(this), this.#fps);
 
         this.#loadFromURL(); // try to load from URL
@@ -316,7 +327,9 @@ class FOS {
 
     #registerMoveTool() {
         var dragging, offset = { x: 0, y: 0 };
-        // subscriptions
+        var initialDimensions = { w: 1, h: 1, x: 1, y: 1 };
+        var lockMode = "NONE";
+
         subscribe("mouseclick", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
             if (this.#selectItemToEdit()) return;
@@ -325,6 +338,20 @@ class FOS {
 
         subscribe("mousedown", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
+
+            const selectedItem = this.sidebar.currentPage.target;
+            if (selectedItem && selectedItem.type === Item.STOCK && selectedItem.isPointInResizeZone(this.mouse.x, this.mouse.y)) {
+                this.#resizing = selectedItem;
+                initialDimensions = {
+                    w: this.#resizing.width,
+                    h: this.#resizing.height,
+                    x: this.mouse.x,
+                    y: this.mouse.y
+                };
+                lockMode = "PENDING";
+                publish("tool/changed", [Toolbar.TOOL_MOVE, true])
+                return;
+            }
 
             const text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
             if (text) {
@@ -359,18 +386,58 @@ class FOS {
 
         subscribe("mousemove", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
+            
+            if (this.#resizing) {
+                var dxAtMouse = this.mouse.x - this.#resizing.x;
+                var dyAtMouse = this.mouse.y - this.#resizing.y;
+
+                if (lockMode === "PENDING") {
+                    var dxMove = Math.abs(this.mouse.x - initialDimensions.x);
+                    var dyMove = Math.abs(this.mouse.y - initialDimensions.y);
+                    if (dxMove > 5 || dyMove > 5) {
+                        if (dxMove > dyMove * 1.5) lockMode = "HORIZONTAL";
+                        else if (dyMove > dxMove * 1.5) lockMode = "VERTICAL";
+                        else lockMode = "FREE";
+                    }
+                }
+
+                if (this.#resizing instanceof RectangleStock) {
+                    if (lockMode === "HORIZONTAL") {
+                        this.#resizing.width = Math.max(60, Math.abs(dxAtMouse) * 2);
+                        this.#resizing.height = initialDimensions.h;
+                    } else if (lockMode === "VERTICAL") {
+                        this.#resizing.height = Math.max(60, Math.abs(dyAtMouse) * 2);
+                        this.#resizing.width = initialDimensions.w;
+                    } else if (lockMode === "FREE") {
+                        this.#resizing.width = Math.max(60, Math.abs(dxAtMouse) * 2);
+                        this.#resizing.height = Math.max(60, Math.abs(dyAtMouse) * 2);
+                    }
+                    // If PENDING, do nothing to the dimensions to prevent 'jumps'
+                } else {
+                    // Circles: Stay circular using the furthest axis as scale
+                    var dist = Math.sqrt(dxAtMouse * dxAtMouse + dyAtMouse * dyAtMouse);
+                    this.#resizing.radius = Math.max(30, dist);
+                }
+                
+                this.model.update(this.#getAnimationConfiguration());
+                publish("model/changed");
+                return;
+            }
+
             if (dragging) {
                 dragging.move(this.mouse.x - offset.x, this.mouse.y - offset.y);
 
                 this.model.update(this.#getAnimationConfiguration()); // update to have no visual glitches
 
                 publish("model/changed");
+                return;
             }
         }.bind(this));
 
         subscribe("mouseup", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
             publish("tool/changed", [Toolbar.TOOL_MOVE])
+            this.#resizing = null;
             dragging = null;
             offset.x = 0;
             offset.y = 0;

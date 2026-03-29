@@ -147,7 +147,9 @@ class Model {
                 label: decodeURIComponent(stock[4]),
                 hue: stock[5],
                 shape: stock[6],
-                unit: stock[7] ? decodeURIComponent(stock[7]) : ""
+                unit: stock[7] ? decodeURIComponent(stock[7]) : "",
+                width: stock[8],
+                height: stock[9]
             });
         }
 
@@ -308,7 +310,9 @@ class Model {
                 encodeURIComponent(encodeURIComponent(stock.label)),
                 stock.color,
                 stock.shape,
-                stock.unit ? encodeURIComponent(encodeURIComponent(stock.unit)) : ""
+                stock.unit ? encodeURIComponent(encodeURIComponent(stock.unit)) : "",
+                Math.round(stock.width),
+                Math.round(stock.height)
             ]);
         }
 
@@ -517,7 +521,9 @@ class Model {
             color: stock.color,
             initialValue: stock.initialValue,
             unit: stock.unit,
-            shape: shape
+            shape: shape,
+            width: stock.width,
+            height: stock.height
         };
 
         var index = this.#stocks.indexOf(stock);

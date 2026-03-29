@@ -1,22 +1,20 @@
 class CircleStock extends Stock {
-    static #stocks = {};
-    static getStock(id) { return CircleStock.#stocks[id]; }
-
     constructor(configuration) {
         super(configuration);
-        CircleStock.#stocks[this.id] = this;
     }
 
     drawHighlight(context, r) {
+        var radius = this.width / 2;
         context.beginPath();
-        context.arc(0, 0, r + 40, 0, Math.TAU, false);
+        context.arc(0, 0, (radius + 40) * 2, 0, Math.TAU, false); // retina
         context.fillStyle = HIGHLIGHT_COLOR;
         context.fill();
     }
 
     drawShape(context, color, r) {
+        var radius = this.width / 2;
         context.beginPath();
-        context.arc(0, 0, r - 2, 0, Math.TAU, false);
+        context.arc(0, 0, radius * 2 - 2, 0, Math.TAU, false);
         context.fillStyle = color;
         context.fill();
         context.lineWidth = 2;
@@ -24,12 +22,6 @@ class CircleStock extends Stock {
         context.stroke();
     }
 
-    drawValueShape(context, color, innerRadius) {
-        context.beginPath();
-        context.arc(0, 0, innerRadius, 0, Math.TAU, false);
-        context.fillStyle = color;
-        context.fill();
-    }
 
     isPointInStock(context, x, y, buffer) {
         return _isPointInCircle(x, y, this.x, this.y, this.radius + (buffer || 0));
@@ -37,6 +29,5 @@ class CircleStock extends Stock {
 
     kill(silent) {
         super.kill(silent);
-        delete CircleStock.#stocks[this.id];
     };
 }

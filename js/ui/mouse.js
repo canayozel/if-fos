@@ -3,6 +3,7 @@ class Mouse {
     #configuration;
     #x; #y; #moved; #pressed;
     #target; #startedOnTarget;
+    #requestedCursor = "";
 
     get x() { return this.#x; }
     get y() { return this.#y; }
@@ -84,10 +85,13 @@ class Mouse {
     };
 
     showCursor(cursorStyle) {
-        this.#target.style.cursor = cursorStyle;
+        this.#requestedCursor = cursorStyle;
     };
 
     update() {
-        this.showCursor("");
+        if (this.#target.style.cursor !== this.#requestedCursor) {
+            this.#target.style.cursor = this.#requestedCursor;
+        }
+        this.#requestedCursor = ""; // Default for next cycle
     };
 }
