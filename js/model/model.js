@@ -307,7 +307,7 @@ class Model {
                 stock.initialValue,
                 encodeURIComponent(encodeURIComponent(stock.label)),
                 stock.color,
-                stock instanceof RectangleStock ? 1 : 0,
+                stock.shape,
                 stock.unit ? encodeURIComponent(encodeURIComponent(stock.unit)) : ""
             ]);
         }
@@ -403,6 +403,8 @@ class Model {
         var stock;
         if (stockConfiguration.shape === 1 || stockConfiguration.shape === "rectangle") {
             stock = new RectangleStock(stockConfiguration);
+        } else if (stockConfiguration.shape === 2 || stockConfiguration.shape === "boundary") {
+            stock = new BoundaryStock(stockConfiguration);
         } else {
             stock = new CircleStock(stockConfiguration);
         }
@@ -526,6 +528,8 @@ class Model {
         var newStock;
         if (shape === 1 || shape === "rectangle") {
             newStock = new RectangleStock(stockConfiguration);
+        } else if (shape === 2 || shape === "boundary") {
+            newStock = new BoundaryStock(stockConfiguration);
         } else {
             newStock = new CircleStock(stockConfiguration);
         }

@@ -42,7 +42,13 @@ class Stock extends Item {
     get color() { return this.#color; }
     get initialValue() { return this.#initialValue; }
     get unit() { return this.#unit; }
-    get shape() { return this instanceof RectangleStock ? 1 : 0; }
+    get showValue() { return true; }
+    get isContentDark() { return this.#isDarkColor(this.color); }
+    get shape() {
+        if (this instanceof RectangleStock) return 1;
+        if (this instanceof BoundaryStock) return 2;
+        return 0;
+    }
 
     set x(x) { this.#x = x; }
     set y(y) { this.#y = y; }
@@ -181,12 +187,12 @@ class Stock extends Item {
     }
 
     drawLabel(context, r) {
-        var isDark = this.#isDarkColor(this.color);
+        var isDark = this.isContentDark;
         var textColor = isDark ? "#FFF" : "#000";
         var subtextColor = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)";
         var pillColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)";
 
-        var hasValue = (this.#initialValue !== null && !isNaN(this.#initialValue));
+        var hasValue = (this.#initialValue !== null && !isNaN(this.#initialValue) && this.showValue);
         var radius = r / 2;
         var isCircle = !(this instanceof RectangleStock);
 

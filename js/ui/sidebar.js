@@ -44,8 +44,8 @@ class Sidebar extends UI {
         }));
         page.addComponent(new ComponentChoice(page, "shape", {
             label: "Shape:",
-            options: [0, 1],
-            iconClasses: ["choice-icon-circle", "choice-icon-rectangle"]
+            options: [0, 1, 2],
+            iconClasses: ["choice-icon-circle", "choice-icon-rectangle", "choice-icon-boundary"]
         }));
         page.addComponent(new ComponentColor(page, "color", {
             label: "Color:",

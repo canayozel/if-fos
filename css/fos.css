@@ -236,6 +236,12 @@ textarea.component-output {
 	height: 18px;
 	border: 2px solid #555555;
 }
+.choice-icon-boundary {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 2px dashed #555555;
+}
 
 .choice-icon-swatch {
 	width: 24px;
