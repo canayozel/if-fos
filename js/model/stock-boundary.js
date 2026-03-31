@@ -7,8 +7,9 @@ class BoundaryStock extends Stock {
     get isContentDark() { return false; }
 
     drawHighlight(context, r) {
+        var radius = this.width / 2;
         context.beginPath();
-        context.arc(0, 0, r + 40, 0, Math.TAU, false);
+        context.arc(0, 0, (radius + 10) * 2, 0, Math.TAU, false); // retina
         context.fillStyle = HIGHLIGHT_COLOR;
         context.fill();
     }
