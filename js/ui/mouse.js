@@ -9,6 +9,9 @@ class Mouse {
     get y() { return this.#y; }
     get moved() { return this.#moved; }    
     get pressed() { return this.#pressed; }    
+    
+    set x(v) { this.#x = v; }
+    set y(v) { this.#y = v; }
 
     constructor(target, configuration) {
         _validateAssigned(target, "Target must be provided.");

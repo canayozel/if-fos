@@ -7,7 +7,7 @@ class RectangleStock extends Stock {
         var w = this.width * 2;
         var h = this.height * 2;
         context.beginPath();
-        context.rect(-w / 2 - 40, -h / 2 - 40, w + 80, h + 80);
+        context.rect(-w / 2 - 25, -h / 2 - 25, w + 50, h + 50);
         context.fillStyle = HIGHLIGHT_COLOR;
         context.fill();
     }
@@ -50,7 +50,7 @@ class RectangleStock extends Stock {
     };
     
     isPointInResizeZone(x, y) {
-        var buffer = 40;
+        var buffer = 25;
         var inHighlight = this.isPointInStock(null, x, y, buffer);
         var inStock = this.isPointInStock(null, x, y, 0);
         return inHighlight && !inStock;

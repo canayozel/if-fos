@@ -47,9 +47,9 @@ class Stock extends Item {
     set y(y) { this.#y = y; }
     set width(v) { this.#width = v; }
     set height(v) { this.#height = v; }
-    set radius(radius) { 
-        this.#width = radius * 2; 
-        this.#height = radius * 2; 
+    set radius(radius) {
+        this.#width = radius * 2;
+        this.#height = radius * 2;
     }
     set label(label) { this.#label = label; }
     set color(color) { this.#color = color; }
@@ -71,14 +71,14 @@ class Stock extends Item {
 
         this.x = configuration.x;
         this.y = configuration.y;
-        
+
         if (configuration.width !== undefined) this.#width = configuration.width;
         if (configuration.height !== undefined) {
             this.#height = configuration.height;
         } else if (configuration.width !== undefined) {
             this.#height = (this instanceof RectangleStock) ? this.#width * 0.75 : this.#width;
         }
-        
+
         // Force circularity if not rectangle
         if (this.#width !== undefined && !(this instanceof RectangleStock)) {
             this.#height = this.#width;
@@ -186,8 +186,8 @@ class Stock extends Item {
         };
 
         // 1. DATA CENTER (Metric Card Style)
-        var valueFontSize = hasValue ? (r_scale * 0.28) : 0; 
-        var valueY = hasValue ? (halfHeight * 0.45) : 0; 
+        var valueFontSize = hasValue ? (r_scale * 0.28) : 0;
+        var valueY = hasValue ? (halfHeight * 0.45) : 0;
 
         if (hasValue) {
             context.font = "bold " + valueFontSize + "px sans-serif";
@@ -249,12 +249,12 @@ class Stock extends Item {
         }
 
         // pillY is used as the boundary for the name above it
-        var safePillY = hasValue ? pillY : 0; 
+        var safePillY = hasValue ? pillY : 0;
         var requiredGap = hasValue ? (halfHeight * 0.15) : 0; // Height-aware gap!
         var topLimit = -halfHeight * 0.85;
 
         // 2. CONTEXT HEADER (Synchronized Growth Logic)
-        var nameFontSize = r_scale * 0.28; 
+        var nameFontSize = r_scale * 0.28;
         context.font = "bold " + nameFontSize + "px sans-serif";
 
         var lines = [];
@@ -263,7 +263,7 @@ class Stock extends Item {
 
         while (nameFontSize > (r * 0.08) || nameFontSize > 10) {
             context.font = "bold " + nameFontSize + "px sans-serif";
-            
+
             // Expected center for multi-line layout
             var spaceAvailable = hasValue ? (safePillY - requiredGap - topLimit) : (halfHeight * 1.7);
             var expectedCenterY = hasValue ? (topLimit + spaceAvailable / 2) : 0;
@@ -351,7 +351,8 @@ class Stock extends Item {
     isPointInResizeZone(x, y) {
         // Resize if clicking/hovering the highlight area (halo) 
         // that is outside the core stock
-        var highlightRadius = this.radius + 40;
+        // Circles use an 8px halo for a balanced, high-precision feel
+        var highlightRadius = this.radius + 10;
         var inHighlight = _isPointInCircle(x, y, this.x, this.y, highlightRadius);
         var inStock = this.isPointInStock(null, x, y, 0);
         return inHighlight && !inStock;

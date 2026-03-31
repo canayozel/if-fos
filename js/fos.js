@@ -9,6 +9,7 @@ class FOS {
     #wobble = FOS.#INITIAL_WOBBLE_CONTROLS;
     #elements = {};
     #resizing = null;
+    #lockMode = null;
 
     constructor(dom, configuration) {
         FOS.#registerGlobalParameters();
@@ -95,7 +96,47 @@ class FOS {
                     
                     // If actively resizing OR hovering an editable stock's halo
                     if (this.#resizing || (target && target.type === Item.STOCK && target.isPointInResizeZone(this.mouse.x, this.mouse.y))) {
-                        this.mouse.showCursor("nwse-resize");
+                        var cursor = "nwse-resize";
+                        
+                        // Reference coordinates relative to the stock center
+                        var focusStock = this.#resizing || target;
+                        var dx = this.mouse.x - focusStock.x;
+                        var dy = this.mouse.y - focusStock.y;
+                        
+                        // Decide on 'Inclination' for diagonal corners
+                        // (isRight && !isBottom) OR (isLeft && isBottom) => nesw-resize ( / )
+                        // Otherwise => nwse-resize ( \ )
+                        var isRightSide = dx > 0;
+                        var isBottomSide = dy > 0;
+                        var diagonal = (isRightSide !== isBottomSide) ? "nesw-resize" : "nwse-resize";
+
+                        if (this.#resizing) {
+                            // Active drag mode takes precedence
+                            if (this.#lockMode === "HORIZONTAL") cursor = "ew-resize";
+                            else if (this.#lockMode === "VERTICAL") cursor = "ns-resize";
+                            else if (this.#lockMode === "FREE") cursor = diagonal;
+                            else cursor = diagonal; // PENDING
+                        } else {
+                            // Hover Hinting: Predict intent based on quadrants
+                            if (target instanceof RectangleStock) {
+                                var adx = Math.abs(dx);
+                                var ady = Math.abs(dy);
+                                var halfW = target.width / 2;
+                                var halfH = target.height / 2;
+                                
+                                // Divide the Halo into logical 'Edge' vs 'Corner' zones
+                                var isOuterX = adx > halfW; 
+                                var isOuterY = ady > halfH;
+                                
+                                if (isOuterX && !isOuterY) cursor = "ew-resize";
+                                else if (isOuterY && !isOuterX) cursor = "ns-resize";
+                                else cursor = diagonal; // Geometrically in a corner
+                            } else {
+                                // Circles always use the correct diagonal inclination
+                                cursor = diagonal;
+                            }
+                        }
+                        this.mouse.showCursor(cursor);
                     }
                 }
             }
@@ -328,7 +369,7 @@ class FOS {
     #registerMoveTool() {
         var dragging, offset = { x: 0, y: 0 };
         var initialDimensions = { w: 1, h: 1, x: 1, y: 1 };
-        var lockMode = "NONE";
+        var initialMouse = { x: 1, y: 1 };
 
         subscribe("mouseclick", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
@@ -339,18 +380,29 @@ class FOS {
         subscribe("mousedown", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
 
-            const selectedItem = this.sidebar.currentPage.target;
-            if (selectedItem && selectedItem.type === Item.STOCK && selectedItem.isPointInResizeZone(this.mouse.x, this.mouse.y)) {
-                this.#resizing = selectedItem;
-                initialDimensions = {
-                    w: this.#resizing.width,
-                    h: this.#resizing.height,
-                    x: this.mouse.x,
-                    y: this.mouse.y
-                };
-                lockMode = "PENDING";
-                publish("tool/changed", [Toolbar.TOOL_MOVE, true])
-                return;
+            // Hit test stocks first for resizing (Halo area)
+            const clickedStock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 40); // 40 is buffer
+            if (clickedStock && clickedStock.type === Item.STOCK) {
+                var inStock = clickedStock.isPointInStock(null, this.mouse.x, this.mouse.y, 0);
+                var isResize = clickedStock.isPointInResizeZone(this.mouse.x, this.mouse.y);
+                
+                if (isResize) {
+                    this.#resizing = clickedStock;
+                    initialDimensions = {
+                        x: clickedStock.x,
+                        y: clickedStock.y,
+                        w: clickedStock.width,
+                        h: clickedStock.height
+                    };
+                    initialMouse = {
+                        x: this.mouse.x,
+                        y: this.mouse.y
+                    };
+                    this.#lockMode = "PENDING";
+                    this.sidebar.edit(clickedStock); // Ensure it's selected
+                    publish("tool/changed", [Toolbar.TOOL_MOVE, true])
+                    return;
+                }
             }
 
             const text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
@@ -391,32 +443,73 @@ class FOS {
                 var dxAtMouse = this.mouse.x - this.#resizing.x;
                 var dyAtMouse = this.mouse.y - this.#resizing.y;
 
-                if (lockMode === "PENDING") {
+                if (this.#lockMode === "PENDING") {
                     var dxMove = Math.abs(this.mouse.x - initialDimensions.x);
                     var dyMove = Math.abs(this.mouse.y - initialDimensions.y);
                     if (dxMove > 5 || dyMove > 5) {
-                        if (dxMove > dyMove * 1.5) lockMode = "HORIZONTAL";
-                        else if (dyMove > dxMove * 1.5) lockMode = "VERTICAL";
-                        else lockMode = "FREE";
+                        if (dxMove > dyMove * 1.5) this.#lockMode = "HORIZONTAL";
+                        else if (dyMove > dxMove * 1.5) this.#lockMode = "VERTICAL";
+                        else this.#lockMode = "FREE";
                     }
                 }
 
                 if (this.#resizing instanceof RectangleStock) {
-                    if (lockMode === "HORIZONTAL") {
-                        this.#resizing.width = Math.max(60, Math.abs(dxAtMouse) * 2);
+                    var minHalfW = 30;
+                    var minHalfH = 30;
+                    
+                    var deltaX = this.mouse.x - initialMouse.x;
+                    var deltaY = this.mouse.y - initialMouse.y;
+                    
+                    // Quadrant multiplier (relative to initial center)
+                    var multX = (initialMouse.x >= initialDimensions.x) ? 1 : -1;
+                    var multY = (initialMouse.y >= initialDimensions.y) ? 1 : -1;
+
+                    if (this.#lockMode === "HORIZONTAL") {
+                        this.#resizing.width = Math.max(60, initialDimensions.w + deltaX * 2 * multX);
                         this.#resizing.height = initialDimensions.h;
-                    } else if (lockMode === "VERTICAL") {
-                        this.#resizing.height = Math.max(60, Math.abs(dyAtMouse) * 2);
+                        
+                        // Prevent cursor drift at min bounds
+                        if (this.#resizing.width <= 60) {
+                            var stopOffset = (60 - initialDimensions.w) / (2 * multX);
+                            this.mouse.x = initialMouse.x + stopOffset;
+                        }
+                    } else if (this.#lockMode === "VERTICAL") {
+                        this.#resizing.height = Math.max(60, initialDimensions.h + deltaY * 2 * multY);
                         this.#resizing.width = initialDimensions.w;
-                    } else if (lockMode === "FREE") {
-                        this.#resizing.width = Math.max(60, Math.abs(dxAtMouse) * 2);
-                        this.#resizing.height = Math.max(60, Math.abs(dyAtMouse) * 2);
+                        
+                        if (this.#resizing.height <= 60) {
+                            var stopOffset = (60 - initialDimensions.h) / (2 * multY);
+                            this.mouse.y = initialMouse.y + stopOffset;
+                        }
+                    } else if (this.#lockMode === "FREE") {
+                        this.#resizing.width = Math.max(60, initialDimensions.w + deltaX * 2 * multX);
+                        this.#resizing.height = Math.max(60, initialDimensions.h + deltaY * 2 * multY);
+                        
+                        // Handle constraints for clamping both axes
+                        if (this.#resizing.width <= 60) {
+                            var stopOffset = (60 - initialDimensions.w) / (2 * multX);
+                            this.mouse.x = initialMouse.x + stopOffset;
+                        }
+                        if (this.#resizing.height <= 60) {
+                            var stopOffset = (60 - initialDimensions.h) / (2 * multY);
+                            this.mouse.y = initialMouse.y + stopOffset;
+                        }
                     }
-                    // If PENDING, do nothing to the dimensions to prevent 'jumps'
                 } else {
-                    // Circles: Stay circular using the furthest axis as scale
-                    var dist = Math.sqrt(dxAtMouse * dxAtMouse + dyAtMouse * dyAtMouse);
-                    this.#resizing.radius = Math.max(30, dist);
+                    // Incremental Circles: Distance-delta logic
+                    var initialDist = Math.sqrt(Math.pow(initialMouse.x - initialDimensions.x, 2) + Math.pow(initialMouse.y - initialDimensions.y, 2));
+                    var currentDist = Math.sqrt(Math.pow(this.mouse.x - initialDimensions.x, 2) + Math.pow(this.mouse.y - initialDimensions.y, 2));
+                    var deltaDist = currentDist - initialDist;
+                    
+                    this.#resizing.radius = Math.max(30, (initialDimensions.w / 2) + deltaDist);
+                    
+                    // Prevent cursor drift at min bounds
+                    if (this.#resizing.radius <= 30) {
+                        var stopDelta = 30 - (initialDimensions.w / 2);
+                        var angle = Math.atan2(this.mouse.y - initialDimensions.y, this.mouse.x - initialDimensions.x);
+                        this.mouse.x = initialDimensions.x + Math.cos(angle) * (initialDist + stopDelta);
+                        this.mouse.y = initialDimensions.y + Math.sin(angle) * (initialDist + stopDelta);
+                    }
                 }
                 
                 this.model.update(this.#getAnimationConfiguration());
@@ -438,6 +531,7 @@ class FOS {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
             publish("tool/changed", [Toolbar.TOOL_MOVE])
             this.#resizing = null;
+            this.#lockMode = null;
             dragging = null;
             offset.x = 0;
             offset.y = 0;
