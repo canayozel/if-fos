@@ -372,36 +372,6 @@ class ComponentColor extends Component {
     }
 }
 
-class ComponentRange extends Component {
-    #input;
-
-    constructor(page, propertyName, configuration) {
-        super(page, propertyName, configuration);
-
-        this.#input = document.createElement("input");
-        this.#input.setAttribute("type", "range");
-        this.#input.setAttribute("class", "component-range");
-        this.#input.setAttribute("min", configuration.min || 30);
-        this.#input.setAttribute("max", configuration.max || 150);
-        this.#input.setAttribute("step", configuration.step || 1);
-
-        this.#input.oninput = () => {
-            var value = parseFloat(this.#input.value);
-            this.setTargetPropertyValue(value);
-            if (this.configuration.oninput) {
-                this.configuration.oninput(value);
-            }
-        };
-
-        var label = _createLabel(this.configuration.label || "");
-        this.dom.appendChild(label);
-        this.dom.appendChild(this.#input);
-    }
-
-    show() {
-        this.#input.value = this.getTargetPropertyValue();
-    }
-}
 class ComponentNumeric extends Component {
     #input;
 
@@ -437,3 +407,4 @@ class ComponentNumeric extends Component {
         this.#input.value = this.getTargetPropertyValue();
     }
 }
+

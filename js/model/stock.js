@@ -359,24 +359,7 @@ class Stock extends Item {
     // PRIVATE METHODS
     /**********************************************************************/
 
-    #wrapText(context, text, maxWidth) {
-        var words = text.split(/\s+/);
-        var lines = [];
-        var currentLine = words[0];
 
-        for (var i = 1; i < words.length; i++) {
-            var word = words[i];
-            var width = context.measureText(currentLine + " " + word).width;
-            if (width < maxWidth) {
-                currentLine += " " + word;
-            } else {
-                lines.push(currentLine);
-                currentLine = word;
-            }
-        }
-        lines.push(currentLine);
-        return lines;
-    }
 
     #isDarkColor(color) {
         if (!color || color.charAt(0) !== '#') return false;
