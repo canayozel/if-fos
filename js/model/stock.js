@@ -34,6 +34,7 @@ class Stock extends Item {
     get label() { return this.#label; }
     get color() { return this.#color; }
     get initialValue() { return this.#initialValue; }
+    get currentValue() { return this.#currentValue; }
     get unit() { return this.#unit; }
     get showValue() { return true; }
     get isContentDark() { return this.#isDarkColor(this.color); }
@@ -134,7 +135,7 @@ class Stock extends Item {
         var color = this.color;
 
         context.save();
-        context.translate(x, y + this.#offset.main);
+        context.translate(x, y);
 
         // highlight selected
         if (this.selected) {
@@ -146,9 +147,6 @@ class Stock extends Item {
 
         // label
         this.drawLabel(context, r);
-
-        // controls
-        this.drawControls(context, configuration);
 
         // restore
         context.restore();
@@ -163,177 +161,157 @@ class Stock extends Item {
     }
 
     drawLabel(context, r) {
-        var isDark = this.isContentDark;
-        var textColor = isDark ? "#FFF" : "#000";
-        var subtextColor = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)";
-        var pillColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)";
+        // 1. Capture State & Constants
+        const isDark = this.isContentDark;
+        const textColor = isDark ? "#FFF" : "#000";
+        const subtextColor = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)";
+        const pillColor = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.06)";
+        
+        const label = this.label;
+        const unit = this.unit || "";
+        const initVal = this.initialValue;
+        const currVal = this.currentValue;
+        const showVal = this.showValue;
+        const hasAmount = (showVal && initVal !== null && !isNaN(initVal));
+        
+        const halfWidth = r / 2;
+        const nodeHeight = this.height * 2;
+        const isCircle = !(this instanceof RectangleStock);
 
-        var hasValue = (this.#initialValue !== null && !isNaN(this.#initialValue) && this.showValue);
-        var halfWidth = r / 2;
-        var halfHeight = this.height / 2;
-        var isCircle = !(this instanceof RectangleStock);
+        // --- 5px (CSS) PADDING CALIBRATION ---
+        const padding = 10; // 5px * 2 for retina
+        const maxW = r - padding;
+        const maxH = nodeHeight - padding;
+        
+        const lineSpacingRatio = isCircle ? 0.85 : 0.95; 
+        const gapRatio = isCircle ? 0.05 : 0.12; 
+        const pillPaddingRatio = 0.2; 
 
-        // Unified Scaling Engine: Base all font decisions on the actual visual room (min of width/height)
-        var effectiveRadius = isCircle ? halfWidth : Math.min(halfWidth, halfHeight);
-        var r_scale = effectiveRadius * 2;
-
-        // Helper for specialized geometry-aware width
+        // Helper: Circle width at physical altitude Y
         const getWidthAtY = (y) => {
-            if (!isCircle) return r * 0.95;
-            var absY = Math.abs(y);
-            if (absY >= halfWidth) return 0;
-            return 2 * Math.sqrt(halfWidth * halfWidth - (absY * absY)) * 0.88;
+            if (!isCircle) return maxW;
+            const safeR = halfWidth - (padding / 2);
+            const absY = Math.abs(y);
+            if (absY >= safeR) return 0;
+            return 2 * Math.sqrt(safeR * safeR - (absY * absY));
         };
 
-        // 1. DATA CENTER (Metric Card Style)
-        var valueFontSize = hasValue ? (r_scale * 0.28) : 0;
-        var valueY = hasValue ? (halfHeight * 0.45) : 0;
+        // --- PHASE 1: BINARY SEARCH FOR OPTIMAL FIT ---
+        let nameLines = [];
+        let stackHeight = 0;
+        let finalAmountPillH = 0;
 
-        if (hasValue) {
-            context.font = "bold " + valueFontSize + "px sans-serif";
-            var displayValue = Math.round(this.#currentValue * 100) / 100;
-            var valueText = displayValue.toString();
-            var unitFontSize = Math.max(10, valueFontSize * 0.65);
-            var unitText = this.unit ? (" " + this.unit) : "";
+        const checkFit = (size) => {
+            const uSize = Math.max(10, size * 0.65);
+            let pillH = 0;
+            let combinedW = 0;
 
-            // Calculate widths
-            var valW = context.measureText(valueText).width;
-            context.font = "bold " + unitFontSize + "px sans-serif";
-            var unitW = this.unit ? context.measureText(unitText).width : 0;
-            var combinedW = valW + unitW;
-
-            var maxWidth = getWidthAtY(valueY);
-
-            // Auto scale combined horizontal text
-            while (combinedW > maxWidth && valueFontSize > (r * 0.1)) {
-                valueFontSize -= 1;
-                unitFontSize = Math.max(10, valueFontSize * 0.65);
-
-                context.font = "bold " + valueFontSize + "px sans-serif";
-                valW = context.measureText(valueText).width;
-                context.font = "bold " + unitFontSize + "px sans-serif";
-                unitW = this.unit ? context.measureText(unitText).width : 0;
-                combinedW = valW + unitW;
+            // A. Amount Metrics
+            if (hasAmount) {
+                const dV = Math.round(currVal * 100) / 100;
+                context.font = "bold " + size + "px sans-serif";
+                const vW = context.measureText(dV.toString()).width;
+                context.font = "bold " + uSize + "px sans-serif";
+                const uW = unit ? context.measureText(" " + unit).width : 0;
+                combinedW = vW + uW;
+                pillH = size * (1 + pillPaddingRatio * 2);
             }
 
-            // Draw THE PILL (Visual Island - Horizontal)
-            var pillPaddingH = r * 0.1;
-            var pillPaddingV = valueFontSize * 0.2;
-            var pillW = combinedW + pillPaddingH * 2;
-            var pillH = valueFontSize + pillPaddingV * 2;
+            // B. Name Metrics
+            context.font = "bold " + size + "px sans-serif";
+            const nLines = this.#wrapText(context, label, maxW);
+            const lSpac = size * lineSpacingRatio;
+            const nH = nLines.length * lSpac;
+            const gap = hasAmount ? (size * gapRatio) : 0;
+            const totalH = nH + gap + pillH;
 
-            var pillTop = valueY - (valueFontSize / 2) - pillPaddingV;
-            var pillX = -pillW / 2;
-            var pillY = pillTop;
-            var pillR = isCircle ? Math.min(pillH / 2, r * 0.15) : (r * 0.08);
+            // C. Constraint: Vertical
+            if (totalH > maxH) return false;
+
+            const sTop = -totalH / 2;
+            
+            // D. Constraint: Width Checks
+            if (hasAmount) {
+                const aY = (sTop + totalH) - pillH / 2;
+                const aCheckY = aY + (pillH / 2) * (isCircle ? 0.4 : 0);
+                if ((combinedW + r * 0.1) > getWidthAtY(aCheckY)) return false;
+            }
+            
+            for (let i = 0; i < nLines.length; i++) {
+                const lY = sTop + (i * lSpac) + (lSpac / 2);
+                const lCheckY = lY - (lSpac / 2) * (isCircle ? 0.4 : 0);
+                if (context.measureText(nLines[i]).width > getWidthAtY(lCheckY)) return false;
+            }
+
+            // Persistence
+            nameLines = nLines;
+            stackHeight = totalH;
+            finalAmountPillH = pillH;
+            return true;
+        };
+
+        // Binary Search (Range: 8px to Container scale)
+        let low = 8, high = Math.max(r, nodeHeight);
+        for (let i = 0; i < 8; i++) {
+            let mid = (low + high) / 2;
+            if (checkFit(mid)) low = mid;
+            else high = mid;
+        }
+        const finalSize = low;
+        checkFit(finalSize); 
+
+        // --- PHASE 2: RENDERING ---
+        const LS = finalSize;
+        const US = Math.max(10, LS * 0.65);
+        const lSpacing = LS * lineSpacingRatio;
+        const sTop = -stackHeight / 2;
+
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+
+        // Draw Name lines
+        context.fillStyle = subtextColor;
+        context.font = "bold " + LS + "px sans-serif";
+        for (let i = 0; i < nameLines.length; i++) {
+            const y = sTop + (i * lSpacing) + (lSpacing / 2);
+            context.fillText(nameLines[i], 0, y);
+        }
+
+        // Draw Amount pill
+        if (hasAmount) {
+            const centerY = (sTop + stackHeight) - (finalAmountPillH / 2);
+            const dVal = Math.round(currVal * 100) / 100;
+            
+            context.font = "bold " + LS + "px sans-serif";
+            const vW = context.measureText(dVal.toString()).width;
+            context.font = "bold " + US + "px sans-serif";
+            const uTxt = unit ? (" " + unit) : "";
+            const uW = unit ? context.measureText(uTxt).width : 0;
+            const fullW = vW + uW;
+
+            const ph = finalAmountPillH, pw = fullW + r * 0.15;
+            const px = -pw / 2, py = centerY - ph / 2;
+            const pr = isCircle ? Math.min(ph / 2, r * 0.1) : (r * 0.08);
 
             context.beginPath();
-            context.roundRect(pillX, pillY, pillW, pillH, pillR);
+            context.roundRect(px, py, pw, ph, pr);
             context.fillStyle = pillColor;
             context.fill();
 
-            // VALUE + UNIT (Side by Side layout)
-            var startX = -combinedW / 2;
-
-            context.font = "bold " + valueFontSize + "px sans-serif";
+            const sx = -fullW / 2;
+            context.textAlign = "left";
+            context.font = "bold " + LS + "px sans-serif";
             context.fillStyle = textColor;
-            context.textAlign = "left";      // Left align so they fit next to each other
-            context.textBaseline = "middle";
-            context.fillText(valueText, startX, valueY);
+            context.fillText(dVal, sx, centerY);
 
-            if (this.unit) {
-                context.font = "bold " + unitFontSize + "px sans-serif";
+            if (unit) {
+                context.font = "bold " + US + "px sans-serif";
                 context.fillStyle = subtextColor;
-                context.fillText(unitText, startX + valW, valueY + (valueFontSize - unitFontSize) * 0.1);
-            }
-        }
-
-        // pillY is used as the boundary for the name above it
-        var safePillY = hasValue ? pillY : 0;
-        var requiredGap = hasValue ? (halfHeight * 0.15) : 0; // Height-aware gap!
-        var topLimit = -halfHeight * 0.85;
-
-        // 2. CONTEXT HEADER (Synchronized Growth Logic)
-        var nameFontSize = r_scale * 0.28;
-        context.font = "bold " + nameFontSize + "px sans-serif";
-
-        var lines = [];
-        var lineSpacing = 0;
-        var totalHeight = 0;
-
-        while (nameFontSize > (r * 0.08) || nameFontSize > 10) {
-            context.font = "bold " + nameFontSize + "px sans-serif";
-
-            // Expected center for multi-line layout
-            var spaceAvailable = hasValue ? (safePillY - requiredGap - topLimit) : (halfHeight * 1.7);
-            var expectedCenterY = hasValue ? (topLimit + spaceAvailable / 2) : 0;
-            var maxWidth = getWidthAtY(expectedCenterY);
-
-            lines = this.#wrapText(context, this.label, maxWidth);
-            lineSpacing = nameFontSize * 1.1;
-            totalHeight = lines.length * lineSpacing;
-
-            // Check if it fits in the available vertical space
-            if (hasValue) {
-                if (totalHeight <= spaceAvailable) {
-                    break;
-                }
-            } else {
-                if (totalHeight <= halfHeight * 1.7) {
-                    break;
-                }
-            }
-            nameFontSize -= 1;
-        }
-
-        if (lines && lines.length > 0) {
-            var startY;
-            if (hasValue) {
-                // Original perfect centering
-                var spaceTop = topLimit;
-                var spaceBottom = safePillY - requiredGap;
-                var spaceCenter = (spaceTop + spaceBottom) / 2;
-                startY = spaceCenter - (totalHeight / 2) + (lineSpacing / 2);
-            } else {
-                startY = 0 - (totalHeight / 2) + (lineSpacing / 2);
-            }
-
-            context.fillStyle = subtextColor; // Consistently use premium styling for the Name
-            context.textAlign = "center";
-            context.textBaseline = "middle";
-            for (var i = 0; i < lines.length; i++) {
-                context.fillText(lines[i], 0, startY + i * lineSpacing);
+                context.fillText(uTxt, sx + vW, centerY + (LS - US) * 0.1);
             }
         }
     }
 
-    drawControls(context, configuration) {
-        // WOBBLE CONTROLS
-        var cl = 40;
-        var cy = 0;
-        if (configuration.wobble > 0) {
-            var wobble = configuration.wobble * (Math.TAU / 30);
-            cy = Math.abs(Math.sin(wobble)) * 10;
-        }
-
-        // controls
-        context.globalAlpha = this.#controls.alpha;
-        context.strokeStyle = "rgba(0,0,0,0.8)";
-        // top arrow
-        context.beginPath();
-        context.moveTo(-cl, -cy - cl);
-        context.lineTo(0, -cy - cl * 2);
-        context.lineTo(cl, -cy - cl);
-        context.lineWidth = (this.#controls.direction > 0) ? 10 : 3;
-        context.stroke();
-        // bottom arrow
-        context.beginPath();
-        context.moveTo(-cl, cy + cl);
-        context.lineTo(0, cy + cl * 2);
-        context.lineTo(cl, cy + cl);
-        context.lineWidth = (this.#controls.direction < 0) ? 10 : 3;
-        context.stroke();
-    }
 
     initialize(model, mouse) {
         this.#reset();
@@ -390,7 +368,6 @@ class Stock extends Item {
 
     takeSignal(signal) {
         this.#currentValue += signal.delta;
-        this.#offset.vel -= 6 * (signal.delta / Math.abs(signal.delta));
 
         this.#sendSignal(signal);
     };
@@ -408,17 +385,6 @@ class Stock extends Item {
         // Visually & vertically bump the stock
         var gotoAlpha = (this.#controls.visible) ? 1 : 0;
         this.#controls.alpha = this.#controls.alpha * 0.5 + gotoAlpha * 0.5;
-        if (configuration.isPlaying && this.#controls.pressed) {
-            this.#offset.goTo = -this.#controls.direction * 20; // by 20 pixels
-        } else {
-            this.#offset.goTo = 0;
-        }
-        this.#offset.main += this.#offset.vel;
-        if (this.#offset.main > 40) this.#offset.main = 40
-        if (this.#offset.main < -40) this.#offset.main = -40;
-        this.#offset.vel += this.#offset.acc;
-        this.#offset.vel *= this.#offset.damp;
-        this.#offset.acc = (this.#offset.goTo - this.#offset.main) * this.#offset.hookes;
     };
 
     /**********************************************************************/

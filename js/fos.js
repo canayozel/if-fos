@@ -1,12 +1,10 @@
 class FOS {
     static get #DEFAULT_ANIMATION_SPEED() { return 3; };
-    static get #INITIAL_WOBBLE_CONTROLS() { return -1; };
 
     #configuration;
     #padding = { all: 25, bottom: 110 };
     #fps = 1000 / 30; // 30 FPS
 
-    #wobble = FOS.#INITIAL_WOBBLE_CONTROLS;
     #elements = {};
     #resizing = null;
     #lockMode = null;
@@ -65,14 +63,12 @@ class FOS {
 
         subscribe("model/mode/changed", function () {
             if (this.model.isPlaying()) {
-                this.#wobble = 45;
                 this.playbar.showPage(Playbar.PAGE_ID_PLAY);
                 this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
                 this.sidebar.setAttribute("mode", "play");
                 this.toolbar.hide();
                 this.#elements.simulator.removeAttribute("cursor");
             } else if (this.model.isComposing()) {
-                this.#wobble = -1;
                 this.playbar.showPage(Playbar.PAGE_ID_COMPOSE);
                 this.sidebar.showPage(Sidebar.PAGE_ID_DEFAULT);
                 this.sidebar.setAttribute("mode", "compose");
@@ -84,9 +80,6 @@ class FOS {
 
     run() {
         setInterval(function () {
-            if (this.#wobble >= 0) { // wobble
-                this.#wobble--;
-            }
             if (!this.modal.open) {
                 this.model.update(this.#getAnimationConfiguration());
                 
@@ -237,7 +230,8 @@ class FOS {
 
     #getAnimationConfiguration() {
         return {
-            wobble: this.#wobble,
+            isPlaying: this.model.isPlaying(),
+            isComposing: this.model.isComposing(),
             animationSpeed: this.#configuration.animationSpeed
         };
     }
