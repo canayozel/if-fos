@@ -130,6 +130,17 @@ canvas {
 	font-weight: 100;
 }
 
+.component-numeric {
+	border: none;
+
+	width: 60px;
+	height: 22px;
+	padding: 5px;
+
+	font-size: 18px;
+	font-weight: 100;
+}
+
 .component-textarea {
 	border: none;
 	width: calc(100% - 10px);

@@ -59,6 +59,12 @@ class Sidebar extends UI {
         page.addComponent(new ComponentInput(page, "unit", {
             label: "Unit:"
         }));
+        page.addComponent(new ComponentNumeric(page, "fontSize", {
+            label: "Font Size:",
+            min: 8,
+            max: 100,
+            step: 1
+        }));
         page.addComponent(new ComponentButton(page, "", {
             label: "delete stock",
             onclick: function (stock) {
@@ -380,11 +386,46 @@ class ComponentRange extends Component {
         this.#input.setAttribute("step", configuration.step || 1);
 
         this.#input.oninput = () => {
-            var value = parseInt(this.#input.value);
+            var value = parseFloat(this.#input.value);
             this.setTargetPropertyValue(value);
             if (this.configuration.oninput) {
                 this.configuration.oninput(value);
             }
+        };
+
+        var label = _createLabel(this.configuration.label || "");
+        this.dom.appendChild(label);
+        this.dom.appendChild(this.#input);
+    }
+
+    show() {
+        this.#input.value = this.getTargetPropertyValue();
+    }
+}
+class ComponentNumeric extends Component {
+    #input;
+
+    constructor(page, propertyName, configuration) {
+        super(page, propertyName, configuration);
+
+        this.#input = document.createElement("input");
+        this.#input.setAttribute("type", "number");
+        this.#input.setAttribute("class", "component-numeric");
+        this.#input.setAttribute("min", configuration.min || 0);
+        this.#input.setAttribute("max", configuration.max || 100);
+        this.#input.setAttribute("step", configuration.step || 1);
+
+        this.#input.oninput = () => {
+            var value = parseFloat(this.#input.value);
+            if (isNaN(value)) value = 0;
+            this.setTargetPropertyValue(value);
+            if (this.configuration.oninput) {
+                this.configuration.oninput(value);
+            }
+        };
+
+        this.#input.onkeydown = (event) => {
+            event.stopPropagation();
         };
 
         var label = _createLabel(this.configuration.label || "");

@@ -24,6 +24,7 @@ class Stock extends Item {
     #unit = "";
     #initialValue = Stock.#DEFAULT_VALUE;
     #currentValue;
+    #fontSize = 20;
 
     get id() { return this.#id; }
     get x() { return this.#x; }
@@ -36,6 +37,7 @@ class Stock extends Item {
     get initialValue() { return this.#initialValue; }
     get currentValue() { return this.#currentValue; }
     get unit() { return this.#unit; }
+    get fontSize() { return this.#fontSize; }
     get showValue() { return true; }
     get isContentDark() { return this.#isDarkColor(this.color); }
     get shape() {
@@ -62,6 +64,13 @@ class Stock extends Item {
         }
     }
     set unit(unit) { this.#unit = unit; }
+    set fontSize(v) { 
+        v = parseFloat(v) || 20;
+        // Migration: If the value is very small, it's likely an old multiplier (e.g. 0.85)
+        // We'll scale it to a reasonable pixel base (20px).
+        if (v > 0 && v < 5) v = Math.round(v * 20);
+        this.#fontSize = v; 
+    }
     set shape(value) { publish("model/stock/shape", [this, value]); }
 
     constructor(configuration) {
@@ -100,6 +109,7 @@ class Stock extends Item {
             }
         }
         if (configuration.unit !== undefined) this.#unit = configuration.unit;
+        if (configuration.fontSize !== undefined) this.fontSize = configuration.fontSize;
 
         // color
         this.#color = configuration.color || configuration.hue || Stock.DEFAULT_COLOR;
@@ -146,7 +156,7 @@ class Stock extends Item {
         this.drawShape(context, color, r);
 
         // label
-        this.drawLabel(context, r);
+        this.drawLabel(context, r * 2);
 
         // restore
         context.restore();
@@ -160,8 +170,8 @@ class Stock extends Item {
         _throwErrorMessage("drawShape not implemented in Stock base class");
     }
 
-    drawLabel(context, r) {
-        // 1. Capture State & Constants
+    drawLabel(context, diameter) {
+        // 1. Initial State & Logic
         const isDark = this.isContentDark;
         const textColor = isDark ? "#FFF" : "#000";
         const subtextColor = isDark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.6)";
@@ -169,145 +179,103 @@ class Stock extends Item {
         
         const label = this.label;
         const unit = this.unit || "";
-        const initVal = this.initialValue;
-        const currVal = this.currentValue;
-        const showVal = this.showValue;
-        const hasAmount = (showVal && initVal !== null && !isNaN(initVal));
+        const hasAmount = (this.showValue && this.initialValue !== null && !isNaN(this.initialValue));
         
-        const halfWidth = r / 2;
-        const nodeHeight = this.height * 2;
         const isCircle = !(this instanceof RectangleStock);
+        const LS = this.fontSize * 2; // Pixel size (Logical * 2 for Retina)
+        const US = Math.max(11, LS * 0.7); // Subtext/Unit size
+        const padding = 12;
 
-        // --- 5px (CSS) PADDING CALIBRATION ---
-        const padding = 10; // 5px * 2 for retina
-        const maxW = r - padding;
-        const maxH = nodeHeight - padding;
-        
-        const lineSpacingRatio = isCircle ? 0.85 : 0.95; 
-        const gapRatio = isCircle ? 0.05 : 0.12; 
-        const pillPaddingRatio = 0.2; 
-
-        // Helper: Circle width at physical altitude Y
-        const getWidthAtY = (y) => {
+        // 2. Shape-Aware Metrics Helper
+        const getWidthAtY = (y, h, totalH) => {
+            const maxW = diameter - padding;
             if (!isCircle) return maxW;
-            const safeR = halfWidth - (padding / 2);
-            const absY = Math.abs(y);
+            const safeR = (diameter / 2) - (padding / 2);
+            // Height-relative coordinate check
+            const absY = Math.max(Math.abs(y - h/2), Math.abs(y + h/2));
             if (absY >= safeR) return 0;
             return 2 * Math.sqrt(safeR * safeR - (absY * absY));
         };
 
-        // --- PHASE 1: BINARY SEARCH FOR OPTIMAL FIT ---
-        let nameLines = [];
-        let stackHeight = 0;
-        let finalAmountPillH = 0;
+        // 3. Wrapping & Height Calculation
+        const lSpac = LS * (isCircle ? 0.9 : 1.0);
+        const gap = hasAmount ? (LS * (isCircle ? 0.05 : 0.1)) : 0;
+        const pillH = hasAmount ? (LS * 1.44) : 0;
 
-        const checkFit = (size) => {
-            const uSize = Math.max(10, size * 0.65);
-            let pillH = 0;
-            let combinedW = 0;
-
-            // A. Amount Metrics
-            if (hasAmount) {
-                const dV = Math.round(currVal * 100) / 100;
-                context.font = "bold " + size + "px sans-serif";
-                const vW = context.measureText(dV.toString()).width;
-                context.font = "bold " + uSize + "px sans-serif";
-                const uW = unit ? context.measureText(" " + unit).width : 0;
-                combinedW = vW + uW;
-                pillH = size * (1 + pillPaddingRatio * 2);
+        context.font = "bold " + LS + "px 'Inter', sans-serif";
+        
+        // Final line wrap based on shape
+        const wrap = (totalH) => {
+            const words = label.split(/\s+/);
+            const lines = [];
+            let currentLine = words[0];
+            let startY = -totalH / 2;
+            for (let i = 1; i < words.length; i++) {
+                const y = startY + (lines.length * lSpac) + (lSpac / 2);
+                const limit = getWidthAtY(y, lSpac, totalH);
+                if (context.measureText(currentLine + " " + words[i]).width <= limit) {
+                    currentLine += " " + words[i];
+                } else {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                }
             }
-
-            // B. Name Metrics
-            context.font = "bold " + size + "px sans-serif";
-            const nLines = this.#wrapText(context, label, maxW);
-            const lSpac = size * lineSpacingRatio;
-            const nH = nLines.length * lSpac;
-            const gap = hasAmount ? (size * gapRatio) : 0;
-            const totalH = nH + gap + pillH;
-
-            // C. Constraint: Vertical
-            if (totalH > maxH) return false;
-
-            const sTop = -totalH / 2;
-            
-            // D. Constraint: Width Checks
-            if (hasAmount) {
-                const aY = (sTop + totalH) - pillH / 2;
-                const aCheckY = aY + (pillH / 2) * (isCircle ? 0.4 : 0);
-                if ((combinedW + r * 0.1) > getWidthAtY(aCheckY)) return false;
-            }
-            
-            for (let i = 0; i < nLines.length; i++) {
-                const lY = sTop + (i * lSpac) + (lSpac / 2);
-                const lCheckY = lY - (lSpac / 2) * (isCircle ? 0.4 : 0);
-                if (context.measureText(nLines[i]).width > getWidthAtY(lCheckY)) return false;
-            }
-
-            // Persistence
-            nameLines = nLines;
-            stackHeight = totalH;
-            finalAmountPillH = pillH;
-            return true;
+            if (currentLine !== undefined) lines.push(currentLine);
+            return lines;
         };
 
-        // Binary Search (Range: 8px to Container scale)
-        let low = 8, high = Math.max(r, nodeHeight);
-        for (let i = 0; i < 8; i++) {
-            let mid = (low + high) / 2;
-            if (checkFit(mid)) low = mid;
-            else high = mid;
+        // Two passes ensures line count stabilizes with vertical positioning
+        let lines = [label];
+        let totalH = (lines.length * lSpac) + gap + pillH;
+        for (let pass = 0; pass < 2; pass++) {
+            lines = wrap(totalH);
+            totalH = (lines.length * lSpac) + gap + pillH;
         }
-        const finalSize = low;
-        checkFit(finalSize); 
 
-        // --- PHASE 2: RENDERING ---
-        const LS = finalSize;
-        const US = Math.max(10, LS * 0.65);
-        const lSpacing = LS * lineSpacingRatio;
-        const sTop = -stackHeight / 2;
-
+        // 4. Rendering
+        const sTop = -totalH / 2;
         context.textAlign = "center";
         context.textBaseline = "middle";
 
         // Draw Name lines
         context.fillStyle = subtextColor;
-        context.font = "bold " + LS + "px sans-serif";
-        for (let i = 0; i < nameLines.length; i++) {
-            const y = sTop + (i * lSpacing) + (lSpacing / 2);
-            context.fillText(nameLines[i], 0, y);
+        context.font = "bold " + LS + "px 'Inter', sans-serif";
+        for (let i = 0; i < lines.length; i++) {
+            const y = sTop + (i * lSpac) + (lSpac / 2);
+            context.fillText(lines[i], 0, y);
         }
 
         // Draw Amount pill
         if (hasAmount) {
-            const centerY = (sTop + stackHeight) - (finalAmountPillH / 2);
-            const dVal = Math.round(currVal * 100) / 100;
+            const centerY = (sTop + totalH) - (pillH / 2);
+            const dVal = Math.round(this.currentValue * 100) / 100;
             
-            context.font = "bold " + LS + "px sans-serif";
-            const vW = context.measureText(dVal.toString()).width;
-            context.font = "bold " + US + "px sans-serif";
+            context.font = "bold " + LS + "px 'Inter', sans-serif";
+            const vW = context.measureText(dVal).width;
+            context.font = "bold " + US + "px 'Inter', sans-serif";
             const uTxt = unit ? (" " + unit) : "";
             const uW = unit ? context.measureText(uTxt).width : 0;
             const fullW = vW + uW;
 
-            const ph = finalAmountPillH, pw = fullW + r * 0.15;
-            const px = -pw / 2, py = centerY - ph / 2;
-            const pr = isCircle ? Math.min(ph / 2, r * 0.1) : (r * 0.08);
+            const pw = fullW + diameter * 0.15;
+            const px = -pw / 2, py = centerY - pillH / 2;
+            const pr = isCircle ? Math.min(pillH / 2, diameter * 0.1) : (diameter * 0.08);
 
             context.beginPath();
-            context.roundRect(px, py, pw, ph, pr);
+            context.roundRect(px, py, pw, pillH, pr);
             context.fillStyle = pillColor;
             context.fill();
 
             const sx = -fullW / 2;
             context.textAlign = "left";
-            context.font = "bold " + LS + "px sans-serif";
+            context.font = "bold " + LS + "px 'Inter', sans-serif";
             context.fillStyle = textColor;
             context.fillText(dVal, sx, centerY);
 
             if (unit) {
-                context.font = "bold " + US + "px sans-serif";
+                context.font = "bold " + US + "px 'Inter', sans-serif";
                 context.fillStyle = subtextColor;
-                context.fillText(uTxt, sx + vW, centerY + (LS - US) * 0.1);
+                context.fillText(uTxt, sx + vW, centerY);
             }
         }
     }
