@@ -77,9 +77,9 @@ class Sidebar extends UI {
             var node = page.target;
             if (!node) return;
 
-            var isStock = node instanceof Stock;
-            page.getComponent("initialValue").dom.style.display = isStock ? "block" : "none";
-            page.getComponent("unit").dom.style.display = isStock ? "block" : "none";
+            var isValuedNode = node instanceof Stock;
+            page.getComponent("initialValue").dom.style.display = isValuedNode ? "block" : "none";
+            page.getComponent("unit").dom.style.display = isValuedNode ? "block" : "none";
 
             var name = node.label;
             if (name == "" || name == "?") page.getComponent("label").select();

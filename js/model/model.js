@@ -400,11 +400,11 @@ class Model {
         var node;
         const s = nodeConfiguration.shape;
         if (s === 1 || s === "rectangle") {
-            node = new RectangleStock(nodeConfiguration);
+            node = new StockRectangle(nodeConfiguration);
         } else if (s === 2 || s === "sink" || s === "boundary") {
             node = new Sink(nodeConfiguration);
         } else {
-            node = new CircleStock(nodeConfiguration);
+            node = new StockCircle(nodeConfiguration);
         }
         node.initialize(this, this.#mouse);
 
@@ -455,7 +455,7 @@ class Model {
     getNodeByCoordinates(x, y, buffer) {
         for (var i = this.#nodes.length - 1; i >= 0; i--) { // top-down
             var node = this.#nodes[i];
-            if (node.isPointInStock(this.#context, x, y, buffer)) return node;
+            if (node.isPointInNode(this.#context, x, y, buffer)) return node;
         }
         return null;
     };
@@ -527,11 +527,11 @@ class Model {
 
         var newNode;
         if (shape === 1 || shape === "rectangle") {
-            newNode = new RectangleStock(nodeConfiguration);
+            newNode = new StockRectangle(nodeConfiguration);
         } else if (shape === 2 || shape === "sink" || shape === "boundary") {
             newNode = new Sink(nodeConfiguration);
         } else {
-            newNode = new CircleStock(nodeConfiguration);
+            newNode = new StockCircle(nodeConfiguration);
         }
         newNode.initialize(this, this.#mouse);
 

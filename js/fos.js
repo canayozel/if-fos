@@ -117,7 +117,7 @@ class FOS {
                             else cursor = diagonal; // PENDING
                         } else {
                             // Hover Hinting: Predict intent based on quadrants
-                            if (target instanceof RectangleStock) {
+                            if (target instanceof StockRectangle) {
                                 var adx = Math.abs(dx);
                                 var ady = Math.abs(dy);
                                 var halfW = target.width / 2;
@@ -391,7 +391,7 @@ class FOS {
             // Hit test nodes first for resizing (Halo area)
             const clickedNode = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 40); // 40 is buffer
             if (clickedNode && clickedNode.type === Item.NODE) {
-                var inNode = clickedNode.isPointInStock(null, this.mouse.x, this.mouse.y, 0);
+                var inNode = clickedNode.isPointInNode(null, this.mouse.x, this.mouse.y, 0);
                 var isResize = clickedNode.isPointInResizeZone(this.mouse.x, this.mouse.y);
 
                 if (isResize) {
@@ -461,7 +461,7 @@ class FOS {
                     }
                 }
 
-                if (this.#resizing instanceof RectangleStock) {
+                if (this.#resizing instanceof StockRectangle) {
                     var minHalfW = 30;
                     var minHalfH = 30;
 
