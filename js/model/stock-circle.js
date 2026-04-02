@@ -1,4 +1,4 @@
-class CircleStock extends Stock {
+class StockCircle extends Stock {
     constructor(configuration) {
         super(configuration);
     }
@@ -23,7 +23,7 @@ class CircleStock extends Stock {
     }
 
 
-    isPointInStock(context, x, y, buffer) {
+    isPointInNode(context, x, y, buffer) {
         return _isPointInCircle(x, y, this.x, this.y, this.radius + (buffer || 0));
     };
 

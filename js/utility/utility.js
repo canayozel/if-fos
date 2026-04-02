@@ -268,3 +268,90 @@ function _validateTrue(object, message) {
 }
 /**************************************************************************/
 /**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+async function _compressToBase64(string) {
+	if (!window.CompressionStream) return string;
+	try {
+		const byteArray = new TextEncoder().encode(string);
+		const cs = new CompressionStream('deflate');
+		const writer = cs.writable.getWriter();
+		writer.write(byteArray);
+		writer.close();
+
+		const chunks = [];
+		const reader = cs.readable.getReader();
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			chunks.push(value);
+		}
+
+		const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+		const uint8Array = new Uint8Array(totalLength);
+		let offset = 0;
+		for (const chunk of chunks) {
+			uint8Array.set(chunk, offset);
+			offset += chunk.length;
+		}
+
+		let binary = "";
+		for (let i = 0; i < uint8Array.length; i++) {
+			binary += String.fromCharCode(uint8Array[i]);
+		}
+		const base64 = btoa(binary);
+		return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+	} catch (e) {
+		console.error("Compression failed:", e);
+		return string;
+	}
+}
+/**************************************************************************/
+/**************************************************************************/
+async function _decompressFromBase64(base64) {
+	if (!window.DecompressionStream) return base64;
+	try {
+		let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+		while (standardBase64.length % 4) standardBase64 += '=';
+
+		const binary = atob(standardBase64);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) {
+			bytes[i] = binary.charCodeAt(i);
+		}
+		
+		const ds = new DecompressionStream('deflate');
+		const writer = ds.writable.getWriter();
+		writer.write(bytes);
+		writer.close();
+
+		const chunks = [];
+		const reader = ds.readable.getReader();
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			chunks.push(value);
+		}
+
+		const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+		const uint8Array = new Uint8Array(totalLength);
+		let offset = 0;
+		for (const chunk of chunks) {
+			uint8Array.set(chunk, offset);
+			offset += chunk.length;
+		}
+
+		return new TextDecoder().decode(uint8Array);
+	} catch (e) {
+		console.error("Decompression failed:", e);
+		return null; // Explicitly return null so deserialize knows it failed
+	}
+}
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/
+/**************************************************************************/

@@ -23,7 +23,7 @@ class FOS {
         FOS.#initializeConfigurationParameter(this.#configuration, "animationSpeed", FOS.#DEFAULT_ANIMATION_SPEED, parseInt, parameter => typeof parameter == "number");
 
         // initialize parameters
-        const offset = {x: 0, y: 0, scale: 1};
+        const offset = { x: 0, y: 0, scale: 1 };
         if (this.#configuration.embedded && !this.#configuration.ui) {
             this.#padding.bottom = this.#padding.all;
         }
@@ -78,24 +78,30 @@ class FOS {
         }.bind(this));
     }
 
-    run() {
+    async run() {
+        try {
+            await this.#loadFromURL(); // try to load from URL
+        } catch (e) {
+            console.error("Error loading simulation from URL:", e);
+        }
+
         setInterval(function () {
             if (!this.modal.open) {
                 this.model.update(this.#getAnimationConfiguration());
-                
+
                 // Central Compose-mode Cursor Management
                 if (this.model.isComposing() && this.toolbar.currentTool === Toolbar.TOOL_MOVE) {
                     const target = this.sidebar.currentPage.target;
-                    
-                    // If actively resizing OR hovering an editable stock's halo
-                    if (this.#resizing || (target && target.type === Item.STOCK && target.isPointInResizeZone(this.mouse.x, this.mouse.y))) {
+
+                    // If actively resizing OR hovering an editable node's halo
+                    if (this.#resizing || (target && target.type === Item.NODE && target.isPointInResizeZone(this.mouse.x, this.mouse.y))) {
                         var cursor = "nwse-resize";
-                        
-                        // Reference coordinates relative to the stock center
-                        var focusStock = this.#resizing || target;
-                        var dx = this.mouse.x - focusStock.x;
-                        var dy = this.mouse.y - focusStock.y;
-                        
+
+                        // Reference coordinates relative to the node center
+                        var focusNode = this.#resizing || target;
+                        var dx = this.mouse.x - focusNode.x;
+                        var dy = this.mouse.y - focusNode.y;
+
                         // Decide on 'Inclination' for diagonal corners
                         // (isRight && !isBottom) OR (isLeft && isBottom) => nesw-resize ( / )
                         // Otherwise => nwse-resize ( \ )
@@ -116,11 +122,11 @@ class FOS {
                                 var ady = Math.abs(dy);
                                 var halfW = target.width / 2;
                                 var halfH = target.height / 2;
-                                
+
                                 // Divide the Halo into logical 'Edge' vs 'Corner' zones
-                                var isOuterX = adx > halfW; 
+                                var isOuterX = adx > halfW;
                                 var isOuterY = ady > halfH;
-                                
+
                                 if (isOuterX && !isOuterY) cursor = "ew-resize";
                                 else if (isOuterY && !isOuterX) cursor = "ns-resize";
                                 else cursor = diagonal; // Geometrically in a corner
@@ -135,8 +141,6 @@ class FOS {
             }
             this.mouse.update(); // collect cursor requests from components and apply to DOM last
         }.bind(this), this.#fps);
-
-        this.#loadFromURL(); // try to load from URL
 
         if (this.#configuration.embedded) {
             // hide compose functionality
@@ -258,10 +262,19 @@ class FOS {
         input.click();
     };
 
-    #loadFromURL() {
+    async #loadFromURL() {
         var data = _getParameterByName("data");
         if (data) {
-            this.model.deserialize(this.#getAnimationConfiguration(), data);
+            try {
+                if (data.charAt(0) !== '[') {
+                    data = await _decompressFromBase64(data);
+                }
+                if (data) {
+                    this.model.deserialize(this.#getAnimationConfiguration(), data);
+                }
+            } catch (e) {
+                console.error("Deserialization failed:", e);
+            }
         }
     };
 
@@ -279,12 +292,13 @@ class FOS {
         this.model.dirty = false;
     }
 
-    #saveToURL(action) {
+    async #saveToURL(action) {
         this.model.dirty = false;
         var data = this.model.serialize();
+        var compressed = await _compressToBase64(data);
 
         var link = window.location.origin + window.location.pathname + "?";
-        link += "data=" + data
+        link += "data=" + compressed
 
         window.history.replaceState(null, null, link);
 
@@ -305,10 +319,10 @@ class FOS {
             return true;
         }
 
-        // Did user click on a stock ? If so, edit THAT stock.
-        const clickedStock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 0);
-        if (clickedStock) {
-            this.sidebar.edit(clickedStock);
+        // Did user click on a node ? If so, edit THAT node.
+        const clickedNode = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
+        if (clickedNode) {
+            this.sidebar.edit(clickedNode);
             return true;
         }
 
@@ -348,8 +362,8 @@ class FOS {
                 var text = this.model.getTextByCoordinates(this.mouse.x, this.mouse.y, 0);
                 if (text) text.kill();
 
-                var stock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 0);
-                if (stock) stock.kill();
+                var node = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
+                if (node) node.kill();
 
                 var flow = this.model.getFlowByCoordinates(this.mouse.x, this.mouse.y, this.#getFlowSelectionRadius());
                 if (flow) flow.kill();
@@ -374,26 +388,26 @@ class FOS {
         subscribe("mousedown", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
 
-            // Hit test stocks first for resizing (Halo area)
-            const clickedStock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 40); // 40 is buffer
-            if (clickedStock && clickedStock.type === Item.STOCK) {
-                var inStock = clickedStock.isPointInStock(null, this.mouse.x, this.mouse.y, 0);
-                var isResize = clickedStock.isPointInResizeZone(this.mouse.x, this.mouse.y);
-                
+            // Hit test nodes first for resizing (Halo area)
+            const clickedNode = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 40); // 40 is buffer
+            if (clickedNode && clickedNode.type === Item.NODE) {
+                var inNode = clickedNode.isPointInStock(null, this.mouse.x, this.mouse.y, 0);
+                var isResize = clickedNode.isPointInResizeZone(this.mouse.x, this.mouse.y);
+
                 if (isResize) {
-                    this.#resizing = clickedStock;
+                    this.#resizing = clickedNode;
                     initialDimensions = {
-                        x: clickedStock.x,
-                        y: clickedStock.y,
-                        w: clickedStock.width,
-                        h: clickedStock.height
+                        x: clickedNode.x,
+                        y: clickedNode.y,
+                        w: clickedNode.width,
+                        h: clickedNode.height
                     };
                     initialMouse = {
                         x: this.mouse.x,
                         y: this.mouse.y
                     };
                     this.#lockMode = "PENDING";
-                    this.sidebar.edit(clickedStock); // Ensure it's selected
+                    this.sidebar.edit(clickedNode); // Ensure it's selected
                     publish("tool/changed", [Toolbar.TOOL_MOVE, true])
                     return;
                 }
@@ -409,12 +423,12 @@ class FOS {
                 return;
             }
 
-            const stock = this.model.getStockByCoordinates(this.mouse.x, this.mouse.y, 0);
-            if (stock) {
-                dragging = stock;
-                offset.x = this.mouse.x - stock.x;
-                offset.y = this.mouse.y - stock.y;
-                this.sidebar.edit(stock);
+            const node = this.model.getNodeByCoordinates(this.mouse.x, this.mouse.y, 0);
+            if (node) {
+                dragging = node;
+                offset.x = this.mouse.x - node.x;
+                offset.y = this.mouse.y - node.y;
+                this.sidebar.edit(node);
                 publish("tool/changed", [Toolbar.TOOL_MOVE, true])
                 return;
             }
@@ -432,7 +446,7 @@ class FOS {
 
         subscribe("mousemove", function () {
             if (!this.model.isComposing() || this.toolbar.currentTool !== Toolbar.TOOL_MOVE) return;
-            
+
             if (this.#resizing) {
                 var dxAtMouse = this.mouse.x - this.#resizing.x;
                 var dyAtMouse = this.mouse.y - this.#resizing.y;
@@ -450,10 +464,10 @@ class FOS {
                 if (this.#resizing instanceof RectangleStock) {
                     var minHalfW = 30;
                     var minHalfH = 30;
-                    
+
                     var deltaX = this.mouse.x - initialMouse.x;
                     var deltaY = this.mouse.y - initialMouse.y;
-                    
+
                     // Quadrant multiplier (relative to initial center)
                     var multX = (initialMouse.x >= initialDimensions.x) ? 1 : -1;
                     var multY = (initialMouse.y >= initialDimensions.y) ? 1 : -1;
@@ -461,7 +475,7 @@ class FOS {
                     if (this.#lockMode === "HORIZONTAL") {
                         this.#resizing.width = Math.max(60, initialDimensions.w + deltaX * 2 * multX);
                         this.#resizing.height = initialDimensions.h;
-                        
+
                         // Prevent cursor drift at min bounds
                         if (this.#resizing.width <= 60) {
                             var stopOffset = (60 - initialDimensions.w) / (2 * multX);
@@ -470,7 +484,7 @@ class FOS {
                     } else if (this.#lockMode === "VERTICAL") {
                         this.#resizing.height = Math.max(60, initialDimensions.h + deltaY * 2 * multY);
                         this.#resizing.width = initialDimensions.w;
-                        
+
                         if (this.#resizing.height <= 60) {
                             var stopOffset = (60 - initialDimensions.h) / (2 * multY);
                             this.mouse.y = initialMouse.y + stopOffset;
@@ -478,7 +492,7 @@ class FOS {
                     } else if (this.#lockMode === "FREE") {
                         this.#resizing.width = Math.max(60, initialDimensions.w + deltaX * 2 * multX);
                         this.#resizing.height = Math.max(60, initialDimensions.h + deltaY * 2 * multY);
-                        
+
                         // Handle constraints for clamping both axes
                         if (this.#resizing.width <= 60) {
                             var stopOffset = (60 - initialDimensions.w) / (2 * multX);
@@ -494,9 +508,9 @@ class FOS {
                     var initialDist = Math.sqrt(Math.pow(initialMouse.x - initialDimensions.x, 2) + Math.pow(initialMouse.y - initialDimensions.y, 2));
                     var currentDist = Math.sqrt(Math.pow(this.mouse.x - initialDimensions.x, 2) + Math.pow(this.mouse.y - initialDimensions.y, 2));
                     var deltaDist = currentDist - initialDist;
-                    
+
                     this.#resizing.radius = Math.max(30, (initialDimensions.w / 2) + deltaDist);
-                    
+
                     // Prevent cursor drift at min bounds
                     if (this.#resizing.radius <= 30) {
                         var stopDelta = 30 - (initialDimensions.w / 2);
@@ -505,7 +519,7 @@ class FOS {
                         this.mouse.y = initialDimensions.y + Math.sin(angle) * (initialDist + stopDelta);
                     }
                 }
-                
+
                 this.model.update(this.#getAnimationConfiguration());
                 publish("model/changed");
                 return;
@@ -560,28 +574,28 @@ class FOS {
             if (!this.mouse.moved) return;
 
             // detect which item draw
-            // if started in a stock and ended near/in a stock, it is an flow else it is a stock
+            // if started in a node and ended near/in a node, it is an flow else it is a node
             const startPoint = stroke[0];
-            let sourceStock = this.model.getStockByCoordinates(startPoint[0], startPoint[1], 0);
-            if (!sourceStock) sourceStock = this.model.getStockByCoordinates(startPoint[0], startPoint[1], 20); // try again with buffer
+            let sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 0);
+            if (!sourceNode) sourceNode = this.model.getNodeByCoordinates(startPoint[0], startPoint[1], 20); // try again with buffer
 
             const endPoint = stroke[stroke.length - 1];
-            let targetStock = this.model.getStockByCoordinates(endPoint[0], endPoint[1], 0);
-            if (!targetStock) targetStock = this.model.getStockByCoordinates(endPoint[0], endPoint[1], 40); // try again with buffer
+            let targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 0);
+            if (!targetNode) targetNode = this.model.getNodeByCoordinates(endPoint[0], endPoint[1], 40); // try again with buffer
 
-            if (sourceStock && targetStock) { // add flow
-                let flowConfiguration = {source: sourceStock, target: targetStock};
-                if (sourceStock === targetStock) {
+            if (sourceNode && targetNode) { // add flow
+                let flowConfiguration = { source: sourceNode, target: targetNode };
+                if (sourceNode === targetNode) {
                     // find rotation first by getting average point
                     var bounds = _getBounds(stroke);
                     var x = (bounds.left + bounds.right) / 2;
                     var y = (bounds.top + bounds.bottom) / 2;
-                    var dx = x - sourceStock.x;
-                    var dy = y - sourceStock.y;
+                    var dx = x - sourceNode.x;
+                    var dy = y - sourceNode.y;
                     var angle = Math.atan2(dy, dx);
 
                     // find arc height.
-                    var translated = _translatePoints(stroke, -sourceStock.x, -sourceStock.y);
+                    var translated = _translatePoints(stroke, -sourceNode.x, -sourceNode.y);
                     var rotated = _rotatePoints(translated, -angle);
                     bounds = _getBounds(rotated);
 
@@ -591,19 +605,19 @@ class FOS {
 
 
                     // if the arc is NOT created than the radius, don't draw, and otherwise, make sure minimum distance of radius+25)
-                    if (flowConfiguration.arc < sourceStock.radius) {
+                    if (flowConfiguration.arc < sourceNode.radius) {
                         flowConfiguration = null;
-                        this.sidebar.edit(sourceStock); // you were probably trying to edit the stock
+                        this.sidebar.edit(sourceNode); // you were probably trying to edit the node
                     } else {
-                        var minimum = sourceStock.radius + 25;
+                        var minimum = sourceNode.radius + 25;
                         if (flowConfiguration.arc < minimum) flowConfiguration.arc = minimum;
                     }
                 } else {
                     // find the arc by translating & rotating
-                    var dx = targetStock.x - sourceStock.x;
-                    var dy = targetStock.y - sourceStock.y;
+                    var dx = targetNode.x - sourceNode.x;
+                    var dy = targetNode.y - sourceNode.y;
                     var angle = Math.atan2(dy, dx);
-                    var translated = _translatePoints(stroke, -sourceStock.x, -sourceStock.y);
+                    var translated = _translatePoints(stroke, -sourceNode.x, -sourceNode.y);
                     var rotated = _rotatePoints(translated, -angle);
                     var bounds = _getBounds(rotated);
 
@@ -619,18 +633,18 @@ class FOS {
                     var newFlow = this.model.addFlow(this.#getAnimationConfiguration(), flowConfiguration);
                     this.sidebar.edit(newFlow);
                 }
-            } else if (!sourceStock) { // add stock
+            } else if (!sourceNode) { // add node
                 var bounds = _getBounds(stroke);
                 var x = (bounds.left + bounds.right) / 2;
                 var y = (bounds.top + bounds.bottom) / 2;
                 var r = ((bounds.width / 2) + (bounds.height / 2)) / 2;
 
                 if (r > 15) { // stroke cannot be too small
-                    var newStock = this.model.addStock(this.#getAnimationConfiguration(), {
+                    var newNode = this.model.addNode(this.#getAnimationConfiguration(), {
                         x: x,
                         y: y
                     });
-                    this.sidebar.edit(newStock);
+                    this.sidebar.edit(newNode);
                 }
             }
 
@@ -679,7 +693,7 @@ class FOS {
         Math.TAU = Math.PI * 2;
 
         const os = window.navigator.userAgentData.platform.toLowerCase();
-        window.isMacLike = os.indexOf("macos") != -1 ||  os.indexOf("mac os") != -1;
+        window.isMacLike = os.indexOf("macos") != -1 || os.indexOf("mac os") != -1;
         window.isMobile = window.navigator.userAgentData.mobile;
 
         window.onbeforeunload = function (e) {

@@ -1,4 +1,4 @@
-class RectangleStock extends Stock {
+class StockRectangle extends Stock {
     constructor(configuration) {
         super(configuration);
     }
@@ -39,7 +39,7 @@ class RectangleStock extends Stock {
         context.fill();
     }
 
-    isPointInStock(context, x, y, buffer) {
+    isPointInNode(context, x, y, buffer) {
         var b = buffer || 0;
         var w = this.width;
         var h = this.height;
@@ -51,9 +51,9 @@ class RectangleStock extends Stock {
     
     isPointInResizeZone(x, y) {
         var buffer = 25;
-        var inHighlight = this.isPointInStock(null, x, y, buffer);
-        var inStock = this.isPointInStock(null, x, y, 0);
-        return inHighlight && !inStock;
+        var inHighlight = this.isPointInNode(null, x, y, buffer);
+        var inNode = this.isPointInNode(null, x, y, 0);
+        return inHighlight && !inNode;
     };
 
     getBoundaryOffset(angle) {

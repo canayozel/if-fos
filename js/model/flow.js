@@ -48,8 +48,8 @@ class Flow extends Item {
     constructor(configuration) {
         super(Item.FLOW, configuration);
 
-        _validateAssigned(configuration.source, "Source stock 'source' must be provided in configuration.");
-        _validateAssigned(configuration.target, "Target stock 'target' must be provided in configuration.");
+        _validateAssigned(configuration.source, "Source node 'source' must be provided in configuration.");
+        _validateAssigned(configuration.target, "Target node 'target' must be provided in configuration.");
 
         this.#source = configuration.source;
         this.#target = configuration.target;
@@ -211,8 +211,8 @@ class Flow extends Item {
         this.#listeners.modelreset = subscribe("model/reset", function () { this.#onModelReset(model) }.bind(this));
     }
 
-    isAssociated(stock) {
-        return this.source == stock || this.target == stock;
+    isAssociated(node) {
+        return this.source == node || this.target == node;
     };
 
     isLoop() {
@@ -246,7 +246,7 @@ class Flow extends Item {
             this.#arc = mag;
             this.#rotation = a * (360 / Math.TAU) + 90;
         } else {
-            // the Arc: whatever label *Y* is, relative to angle & first stock's pos
+            // the Arc: whatever label *Y* is, relative to angle & first node's pos
             var sx = this.source.x;
             var sy = this.source.y;
             var tx = this.target.x;

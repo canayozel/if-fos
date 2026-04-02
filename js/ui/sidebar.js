@@ -2,7 +2,7 @@ class Sidebar extends UI {
     static get #BACK_BUTTON_TEXT() { return "go back" };
 
     static get PAGE_ID_DEFAULT() { return "DEFAULT" };
-    static get PAGE_ID_STOCK() { return "STOCK" };
+    static get PAGE_ID_NODE() { return Item.NODE };
     static get PAGE_ID_FLOW() { return "FLOW" };
     static get PAGE_ID_TEXT() { return "TEXT" };
 
@@ -11,7 +11,7 @@ class Sidebar extends UI {
         super(dom)
 
         this.addPage(Sidebar.PAGE_ID_DEFAULT, this.#initializeDefaultPage());
-        this.addPage(Sidebar.PAGE_ID_STOCK, this.#initializeStockEditPage());
+        this.addPage(Sidebar.PAGE_ID_NODE, this.#initializeNodeEditPage());
         this.addPage(Sidebar.PAGE_ID_FLOW, this.#initializeFlowEditPage());
         this.addPage(Sidebar.PAGE_ID_TEXT, this.#initializeTextEditPage());
 
@@ -22,8 +22,8 @@ class Sidebar extends UI {
                 this.showPage(Sidebar.PAGE_ID_DEFAULT);
             }
         }.bind(this));
-        subscribe("model/stock/replaced", function (newStock) {
-            this.edit(newStock);
+        subscribe("model/node/replaced", function (newNode) {
+            this.edit(newNode);
         }.bind(this));
     }
 
@@ -32,7 +32,7 @@ class Sidebar extends UI {
         this.currentPage.edit(object);
     };
 
-    #initializeStockEditPage() {
+    #initializeNodeEditPage() {
         var page = new SidebarPage();
         page.addComponent(new ComponentButton(page, "", {
             header: true,
@@ -50,7 +50,7 @@ class Sidebar extends UI {
         page.addComponent(new ComponentColor(page, "color", {
             label: "Color:",
             oninput: (value) => {
-                Stock.DEFAULT_COLOR = value;
+                Node.DEFAULT_COLOR = value;
             }
         }));
         page.addComponent(new ComponentInput(page, "initialValue", {
@@ -66,18 +66,22 @@ class Sidebar extends UI {
             step: 1
         }));
         page.addComponent(new ComponentButton(page, "", {
-            label: "delete stock",
-            onclick: function (stock) {
-                stock.kill();
+            label: "delete node",
+            onclick: function (node) {
+                node.kill();
                 this.showPage(Sidebar.PAGE_ID_DEFAULT);
             }.bind(this)
         }));
 
         page.onEdit = function () {
-            var stock = page.target;
-            if (!stock) return;
+            var node = page.target;
+            if (!node) return;
 
-            var name = stock.label;
+            var isStock = node instanceof Stock;
+            page.getComponent("initialValue").dom.style.display = isStock ? "block" : "none";
+            page.getComponent("unit").dom.style.display = isStock ? "block" : "none";
+
+            var name = node.label;
             if (name == "" || name == "?") page.getComponent("label").select();
         };
         return page;

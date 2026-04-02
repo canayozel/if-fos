@@ -3,7 +3,7 @@ class Model {
     static get MODE_PLAY() { return 1; };
 
     #texts = [];
-    #stocks = [];
+    #nodes = [];
     #flows = [];
     #stroke = [];
 
@@ -61,23 +61,23 @@ class Model {
             this.#dom.setAttribute("cursor", tool + postfix);
             this.removeStroke();
         });
-        subscribe("model/stock/shape", (stock, shape) => {
-            this.replaceStock(stock, shape);
+        subscribe("model/node/shape", (node, shape) => {
+            this.replaceNode(node, shape);
         });
     }
 
     autoSignal(signal) {
         if (signal && Array.isArray(signal) && signal.length == 2) {
-            var stock = Stock.getStock(signal[0]);
-            if (stock) {
+            var node = Node.getNode(signal[0]);
+            if (node) {
                 var direction = signal[1] && signal[1] > 0 ? 1 : -1;
-                stock.takeSignal({ delta: direction * Stock.DEFAULT_SIGNAL_DELTA_MULTIPLIER });
+                node.takeSignal({ delta: direction * Node.DEFAULT_SIGNAL_DELTA_MULTIPLIER });
             }
         }
     }
 
     center(scale) {
-        if (this.#stocks.length == 0 && this.#texts.length == 0) return;
+        if (this.#nodes.length == 0 && this.#texts.length == 0) return;
 
         var bounds = this.getBounds();
         var cx = (bounds.left + bounds.right) / 2;
@@ -101,11 +101,11 @@ class Model {
             var offsetX = (this.#dom.clientWidth + this.#padding.all) / 2 - cx;
             var offsetY = (this.#dom.clientHeight - this.#padding.bottom) / 2 - cy;
 
-            // move all stocks
-            for (var i = 0; i < this.#stocks.length; i++) {
-                var stock = this.#stocks[i];
-                stock.x += offsetX;
-                stock.y += offsetY;
+            // move all nodes
+            for (var i = 0; i < this.#nodes.length; i++) {
+                var node = this.#nodes[i];
+                node.x += offsetX;
+                node.y += offsetY;
             }
 
             // move all texts
@@ -118,8 +118,8 @@ class Model {
     };
 
     clear() {
-        while (this.#stocks.length > 0) {
-            this.#stocks[0].kill();
+        while (this.#nodes.length > 0) {
+            this.#nodes[0].kill();
         }
 
         while (this.#texts.length > 0) {
@@ -132,24 +132,24 @@ class Model {
 
         var data = JSON.parse(data);
 
-        var stocks = data[0];
+        var nodes = data[0];
         var flows = data[1];
         var texts = data[2];
 
-        // stocks
-        for (var i = 0; i < stocks.length; i++) {
-            var stock = stocks[i];
-            this.addStock(animationConfiguration, {
-                id: stock[0],
-                x: stock[1],
-                y: stock[2],
-                initialValue: stock[3],
-                label: decodeURIComponent(stock[4]),
-                hue: stock[5],
-                shape: stock[6],
-                unit: stock[7] ? decodeURIComponent(stock[7]) : "",
-                width: stock[8],
-                height: stock[9]
+        // nodes
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            this.addNode(animationConfiguration, {
+                id: node[0],
+                x: node[1],
+                y: node[2],
+                initialValue: node[3],
+                label: decodeURIComponent(node[4]),
+                hue: node[5],
+                shape: node[6],
+                unit: node[7] ? decodeURIComponent(node[7]) : "",
+                width: node[8],
+                height: node[9]
             });
         }
 
@@ -157,8 +157,8 @@ class Model {
         for (var i = 0; i < flows.length; i++) {
             var flow = flows[i];
             this.addFlow(animationConfiguration, {
-                source: Stock.getStock(flow[0]),
-                target: Stock.getStock(flow[1]),
+                source: Node.getNode(flow[0]),
+                target: Node.getNode(flow[1]),
                 arc: flow[2],
                 strength: flow[3],
                 rotation: flow[4]
@@ -171,7 +171,7 @@ class Model {
             this.addText(animationConfiguration, {
                 x: text[0],
                 y: text[1],
-                value: decodeURIComponent(text[2])
+                value: text[2] ? decodeURIComponent(text[2]) : ""
             });
         }
 
@@ -243,7 +243,7 @@ class Model {
         try {
             for (var i = 0; i < this.#texts.length; i++) this.#texts[i].draw(this.#context, configuration);
             for (var i = 0; i < this.#flows.length; i++) this.#flows[i].draw(this.#context, configuration);
-            for (var i = 0; i < this.#stocks.length; i++) this.#stocks[i].draw(this.#context, configuration);
+            for (var i = 0; i < this.#nodes.length; i++) this.#nodes[i].draw(this.#context, configuration);
         } catch (e) {
             console.error("Draw loop error:", e);
         }
@@ -253,7 +253,7 @@ class Model {
     };
 
     getBounds() {
-        if (this.#stocks.length == 0 && this.#texts.length == 0) return;
+        if (this.#nodes.length == 0 && this.#texts.length == 0) return;
 
         // get bounds of all objects
         var left = Infinity;
@@ -272,7 +272,7 @@ class Model {
             }
         }.bind(this);
 
-        processItems(this.#stocks);
+        processItems(this.#nodes);
         processItems(this.#flows);
         processItems(this.#texts);
 
@@ -294,25 +294,25 @@ class Model {
     }
 
     serialize() {
-        var data = []; // 0: stocks, 1: flows, 2: labels, 3: UID
+        var data = []; // 0: nodes, 1: flows, 2: labels, 3: UID
 
-        // stocks
-        var stocks = [];
-        for (var i = 0; i < this.#stocks.length; i++) {
-            var stock = this.#stocks[i];
+        // nodes
+        var nodes = [];
+        for (var i = 0; i < this.#nodes.length; i++) {
+            var node = this.#nodes[i];
 
             // 0: id, 1: x, 2: y, 3: initialValue, 4: label, 5: color, 6: shape, 7: unit
-            stocks.push([
-                stock.id,
-                Math.round(stock.x),
-                Math.round(stock.y),
-                stock.initialValue,
-                encodeURIComponent(encodeURIComponent(stock.label)),
-                stock.color,
-                stock.shape,
-                stock.unit ? encodeURIComponent(encodeURIComponent(stock.unit)) : "",
-                Math.round(stock.width),
-                Math.round(stock.height)
+            nodes.push([
+                node.id,
+                Math.round(node.x),
+                Math.round(node.y),
+                node.initialValue || null,
+                encodeURIComponent(node.label),
+                node.color,
+                node.shape,
+                node.unit ? encodeURIComponent(node.unit) : "",
+                Math.round(node.width),
+                Math.round(node.height)
             ]);
         }
 
@@ -340,22 +340,15 @@ class Model {
             texts.push([
                 Math.round(text.x),
                 Math.round(text.y),
-                text.value ? encodeURIComponent(encodeURIComponent(text.value)) : ""
+                text.value ? encodeURIComponent(text.value) : ""
             ]);
         }
 
-        data.push(stocks);
+        data.push(nodes);
         data.push(flows);
         data.push(texts);
 
-        // only uri encode quotes, also replace the last character
-        var dataString = JSON.stringify(data);
-        dataString = dataString.replace(/"/gi, "%22");
-        dataString = dataString.replace(/#/gi, "%23");
-        dataString = dataString.replace(/&/gi, "%26");
-        dataString = dataString.replace(/\+/gi, "%2B");
-        dataString = dataString.substring(0, dataString.length - 1) + "%5D";
-        return dataString;
+        return JSON.stringify(data);
     };
 
     setMode(mode) {
@@ -383,8 +376,8 @@ class Model {
             this.#flows[i].update(this.#mouse, configuration);
         }
 
-        for (var i = 0; i < this.#stocks.length; i++) {
-            this.#stocks[i].update(this.#mouse, configuration);
+        for (var i = 0; i < this.#nodes.length; i++) {
+            this.#nodes[i].update(this.#mouse, configuration);
         }
 
         this.#updated = true;
@@ -403,23 +396,24 @@ class Model {
         return flow;
     };
 
-    addStock(animationConfiguraiton, stockConfiguration) {
-        var stock;
-        if (stockConfiguration.shape === 1 || stockConfiguration.shape === "rectangle") {
-            stock = new RectangleStock(stockConfiguration);
-        } else if (stockConfiguration.shape === 2 || stockConfiguration.shape === "boundary") {
-            stock = new BoundaryStock(stockConfiguration);
+    addNode(animationConfiguraiton, nodeConfiguration) {
+        var node;
+        const s = nodeConfiguration.shape;
+        if (s === 1 || s === "rectangle") {
+            node = new RectangleStock(nodeConfiguration);
+        } else if (s === 2 || s === "sink" || s === "boundary") {
+            node = new Sink(nodeConfiguration);
         } else {
-            stock = new CircleStock(stockConfiguration);
+            node = new CircleStock(nodeConfiguration);
         }
-        stock.initialize(this, this.#mouse);
+        node.initialize(this, this.#mouse);
 
-        this.#stocks.push(stock)
+        this.#nodes.push(node)
         this.update(animationConfiguraiton);
 
         publish("model/changed");
 
-        return stock;
+        return node;
     }
 
     addStroke(stroke) {
@@ -452,16 +446,16 @@ class Model {
         return null;
     };
 
-    getFlowsByStartStock(startStock) {
+    getFlowsByStartNode(startNode) {
         return this.#flows.filter(function (flow) {
-            return (flow.from === startStock);
+            return (flow.from === startNode);
         });
     };
 
-    getStockByCoordinates(x, y, buffer) {
-        for (var i = this.#stocks.length - 1; i >= 0; i--) { // top-down
-            var stock = this.#stocks[i];
-            if (stock.isPointInStock(this.#context, x, y, buffer)) return stock;
+    getNodeByCoordinates(x, y, buffer) {
+        for (var i = this.#nodes.length - 1; i >= 0; i--) { // top-down
+            var node = this.#nodes[i];
+            if (node.isPointInStock(this.#context, x, y, buffer)) return node;
         }
         return null;
     };
@@ -482,15 +476,15 @@ class Model {
         publish("model/changed");
     };
 
-    removeStock(stock) {
-        var index = this.#stocks.indexOf(stock);
+    removeNode(node) {
+        var index = this.#nodes.indexOf(node);
         if (index === -1) return;
-        this.#stocks.splice(index, 1);
+        this.#nodes.splice(index, 1);
 
         // Remove all associated TO and FROM flows
         for (var i = 0; i < this.#flows.length; i++) {
             var flow = this.#flows[i];
-            if (flow.isAssociated(stock)) {
+            if (flow.isAssociated(node)) {
                 flow.kill();
                 i--; // move index back, because it's been killed
             }
@@ -512,56 +506,56 @@ class Model {
         publish("model/changed");
     };
 
-    replaceStock(stock, shape) {
-        var stockConfiguration = {
-            id: stock.id,
-            x: stock.x,
-            y: stock.y,
-            label: stock.label,
-            color: stock.color,
-            initialValue: stock.initialValue,
-            unit: stock.unit,
+    replaceNode(node, shape) {
+        var nodeConfiguration = {
+            id: node.id,
+            x: node.x,
+            y: node.y,
+            label: node.label,
+            color: node.color,
+            initialValue: node.initialValue,
+            unit: node.unit,
             shape: shape,
-            width: stock.width,
-            height: stock.height
+            width: node.width,
+            height: node.height
         };
 
-        var index = this.#stocks.indexOf(stock);
+        var index = this.#nodes.indexOf(node);
 
-        // RELEASE the ID before creating the new stock
-        stock.kill(true);
+        // RELEASE the ID before creating the new node
+        node.kill(true);
 
-        var newStock;
+        var newNode;
         if (shape === 1 || shape === "rectangle") {
-            newStock = new RectangleStock(stockConfiguration);
-        } else if (shape === 2 || shape === "boundary") {
-            newStock = new BoundaryStock(stockConfiguration);
+            newNode = new RectangleStock(nodeConfiguration);
+        } else if (shape === 2 || shape === "sink" || shape === "boundary") {
+            newNode = new Sink(nodeConfiguration);
         } else {
-            newStock = new CircleStock(stockConfiguration);
+            newNode = new CircleStock(nodeConfiguration);
         }
-        newStock.initialize(this, this.#mouse);
+        newNode.initialize(this, this.#mouse);
 
-        // Update #stocks array
+        // Update #nodes array
         if (index !== -1) {
-            this.#stocks[index] = newStock;
+            this.#nodes[index] = newNode;
         } else {
-            this.#stocks.push(newStock);
+            this.#nodes.push(newNode);
         }
 
         // Swap in flows - using ID comparison for robustness
         for (var i = 0; i < this.#flows.length; i++) {
             var flow = this.#flows[i];
-            if (flow.source.id === stockConfiguration.id) {
-                flow.source = newStock;
+            if (flow.source.id === nodeConfiguration.id) {
+                flow.source = newNode;
             }
-            if (flow.target.id === stockConfiguration.id) {
-                flow.target = newStock;
+            if (flow.target.id === nodeConfiguration.id) {
+                flow.target = newNode;
             }
         }
 
-        publish("model/stock/replaced", [newStock]);
+        publish("model/node/replaced", [newNode]);
         publish("model/changed");
-        return newStock;
+        return newNode;
     }
 
     /**********************************************************************/
@@ -570,8 +564,8 @@ class Model {
     #removeItem(item) {
         if (item.type == Item.TEXT) {
             this.removeText(item);
-        } else if (item.type == Item.STOCK) {
-            this.removeStock(item);
+        } else if (item.type == Item.NODE) {
+            this.removeNode(item);
         } else if (item.type == Item.FLOW) {
             this.removeFlow(item);
         }

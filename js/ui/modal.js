@@ -18,7 +18,7 @@ class Modal extends UI {
             var page = this.showPage(action);
             if (!page) return;
 
-            if (page.onshow) page.onshow();
+            if (page.onShow) page.onShow();
             this.show();
         }.bind(this));
     }
@@ -29,7 +29,7 @@ class Modal extends UI {
     hide() {
         super.hide();
         this.#elements.container.setAttribute("show", "no");
-        if (this.currentPage.onhide) this.currentPage.onhide();
+        if (this.currentPage.onHide) this.currentPage.onHide();
         this.#open = false;
     };
 
@@ -139,8 +139,9 @@ class Modal extends UI {
         iframeContainer.dom.style.float = "right";
         iframeContainer.dom.style["padding"] = "20px";
 
-        page.onShow = function () {
-            link = configuration.saveToURL(Toolbar.TOOL_EMBED);
+        page.onShow = async function () {
+            output.output("Generating link...");
+            link = await configuration.saveToURL(Toolbar.TOOL_EMBED);
 
             widthInput.setValue(500);
             heightInput.setValue(440);
@@ -185,8 +186,9 @@ class Modal extends UI {
         charactersLeft.innerHTML = "X out of 2048 characters";
         page.dom.appendChild(charactersLeft);
 
-        page.onshow = function () {
-            var link = configuration.saveToURL();
+        page.onShow = async function () {
+            output.output("Generating link...");
+            var link = await configuration.saveToURL();
             output.output(link);
             output.select();
 

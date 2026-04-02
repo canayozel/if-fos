@@ -58,8 +58,9 @@ class Playbar extends UI {
             var buttonDOM = page.addComponent(new PlaybarButton({
                 icon: "gg-external",
                 label: "Remix",
-                onclick: function () {
-                    window.open(configuration.saveToURL("embed"), '_blank');
+                onclick: async function () {
+                    var link = await configuration.saveToURL("embed");
+                    window.open(link, '_blank');
                 }
             })).dom;
             buttonDOM.style.width = "100px";
