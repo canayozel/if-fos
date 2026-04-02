@@ -253,6 +253,7 @@ class Node extends Item {
     };
 
     isPointInResizeZone(x, y) {
+        // Base implementation (Circles)
         var highlightRadius = this.radius + 10;
         var inHighlight = _isPointInCircle(x, y, this.x, this.y, highlightRadius);
         var inNode = this.isPointInNode(null, x, y, 0);

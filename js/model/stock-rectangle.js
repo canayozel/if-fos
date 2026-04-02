@@ -24,10 +24,6 @@ class StockRectangle extends Stock {
         context.strokeStyle = "rgba(0,0,0,0.1)";
         context.stroke();
     }
-    
-    drawResizeHandle(context, r) {
-        // [DEPRECATED] using highlight area instead
-    }
 
     drawValueShape(context, color, innerSize) {
         var ratio = this.height / this.width;
@@ -44,11 +40,11 @@ class StockRectangle extends Stock {
         var w = this.width;
         var h = this.height;
         return x >= this.x - w / 2 - b &&
-               x <= this.x + w / 2 + b &&
-               y >= this.y - h / 2 - b &&
-               y <= this.y + h / 2 + b;
+            x <= this.x + w / 2 + b &&
+            y >= this.y - h / 2 - b &&
+            y <= this.y + h / 2 + b;
     };
-    
+
     isPointInResizeZone(x, y) {
         var buffer = 25;
         var inHighlight = this.isPointInNode(null, x, y, buffer);
@@ -61,7 +57,7 @@ class StockRectangle extends Stock {
         var H = this.height / 2;
         var cos = Math.abs(Math.cos(angle));
         var sin = Math.abs(Math.sin(angle));
-        
+
         if (W * sin > H * cos) {
             return H / sin;
         } else {

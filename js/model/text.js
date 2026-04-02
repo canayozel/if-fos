@@ -4,14 +4,22 @@ class Text extends Item {
     #x;
     #y;
     #value;
+    #fontSize = 40;
 
     get x() { return this.#x; }
     get y() { return this.#y; }
     get value() { return this.#value; }
 
+    get fontSize() { return this.#fontSize; }
+
     set x(x) { this.#x = x; }
     set y(y) { this.#y = y; }
     set value(value) { this.#value = value; }
+    set fontSize(v) {
+        v = parseFloat(v) || 40;
+        if (v > 0 && v < 5) v = Math.round(v * 40);
+        this.#fontSize = v;
+    }
 
     constructor(configuration) {
         super(Item.TEXT, configuration);
@@ -23,6 +31,7 @@ class Text extends Item {
         this.#x = configuration.x;
         this.#y = configuration.y;
         this.#value = configuration.value;
+        if (configuration.fontSize !== undefined) this.fontSize = configuration.fontSize;
     }
 
     getBoundingBox(context) {
@@ -55,17 +64,17 @@ class Text extends Item {
         context.save();
         context.translate(x, y);
 
-        context.font = "100 " + Text.FONT_SIZE + "px sans-serif";
+        context.font = "100 " + this.#fontSize + "px sans-serif";
         context.textAlign = "center";
         context.textBaseline = "middle";
         context.fillStyle = "#000000";
 
         var lines = this.#breakText();
-        context.translate(0, -(Text.FONT_SIZE * lines.length) / 2);
+        context.translate(0, -(this.#fontSize * lines.length) / 2);
         for (var i = 0; i < lines.length; i++) {
             var line = lines[i];
             context.fillText(line, 0, 0);
-            context.translate(0, Text.FONT_SIZE);
+            context.translate(0, this.#fontSize);
         }
 
         context.restore();
@@ -105,13 +114,13 @@ class Text extends Item {
         }
 
         var w = maxWidth;
-        var h = (Text.FONT_SIZE * lines.length) / 2;
+        var h = (this.#fontSize * lines.length) / 2;
 
         return {
             x: this.x - w / 2,
-            y: this.y - h / 2 - Text.FONT_SIZE / 2,
+            y: this.y - h / 2 - this.#fontSize / 2,
             width: w,
-            height: h + Text.FONT_SIZE / 2
+            height: h + this.#fontSize / 2
         };
     };
 }

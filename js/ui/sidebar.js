@@ -128,6 +128,12 @@ class Sidebar extends UI {
             label: "<br><br>Label:",
             textarea: true
         }));
+        page.addComponent(new ComponentNumeric(page, "fontSize", {
+            label: "Font Size:",
+            min: 8,
+            max: 200,
+            step: 1
+        }));
         page.addComponent(new ComponentButton(page, "", {
             label: "delete label",
             onclick: function (item) {

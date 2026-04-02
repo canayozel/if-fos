@@ -149,7 +149,8 @@ class Model {
                 shape: node[6],
                 unit: node[7] ? decodeURIComponent(node[7]) : "",
                 width: node[8],
-                height: node[9]
+                height: node[9],
+                fontSize: node[10]
             });
         }
 
@@ -171,7 +172,8 @@ class Model {
             this.addText(animationConfiguration, {
                 x: text[0],
                 y: text[1],
-                value: text[2] ? decodeURIComponent(text[2]) : ""
+                value: text[2] ? decodeURIComponent(text[2]) : "",
+                fontSize: text[3]
             });
         }
 
@@ -312,7 +314,8 @@ class Model {
                 node.shape,
                 node.unit ? encodeURIComponent(node.unit) : "",
                 Math.round(node.width),
-                Math.round(node.height)
+                Math.round(node.height),
+                node.fontSize
             ]);
         }
 
@@ -340,7 +343,8 @@ class Model {
             texts.push([
                 Math.round(text.x),
                 Math.round(text.y),
-                text.value ? encodeURIComponent(text.value) : ""
+                text.value ? encodeURIComponent(text.value) : "",
+                text.fontSize
             ]);
         }
 
